@@ -67,9 +67,19 @@ You need the following before proceeding:
 
 ### 4. Add Secrets to GitHub Actions
 
-In your forked repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add each of the five keys above by their exact names: `SUPABASE_URL`, `SUPABASE_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `JINA_API_KEY`.
+GitHub Actions reads secrets from your repository settings — **not** from your local `.env` file. You must add them manually through the GitHub UI.
 
-The workflow file at `.github/workflows/run.yml` reads these secrets and injects them as environment variables at runtime.
+In your forked repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add each of the five keys below by their exact names:
+
+| Secret name | Value |
+|---|---|
+| `SUPABASE_URL` | Your Supabase project URL (e.g. `https://xxxx.supabase.co`) |
+| `SUPABASE_KEY` | Your Supabase anon key (starts with `sb_publishable_` on new accounts) |
+| `GEMINI_API_KEY` | Your Google AI Studio key |
+| `RESEND_API_KEY` | Your Resend API key |
+| `JINA_API_KEY` | Your Jina AI key (optional) |
+
+The workflow at `.github/workflows/run.yml` injects these as environment variables at runtime. Your local `.env` file is ignored by GitHub Actions entirely — it only exists for local runs.
 
 ### 5. Update the Recipient Email
 
@@ -89,6 +99,8 @@ To verify everything is wired up before waiting for the cron:
 2. Click the **Actions** tab.
 3. Select **Internship Tracker** from the left sidebar.
 4. Click **Run workflow** → **Run workflow**.
+
+> **Note:** GitHub only registers a workflow in the Actions UI after it detects the workflow file on the default branch. If **Internship Tracker** does not appear in the sidebar, make any small commit and push — GitHub will index the workflow on the next push and it will appear within a minute.
 
 Check the run logs for `[OK]` lines per company and a final count of new jobs found. If new jobs exist, you should receive an email within a minute of the run completing.
 
