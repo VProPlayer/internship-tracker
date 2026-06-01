@@ -3,7 +3,12 @@ import requests
 BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 
 KEYWORDS = [
-    "intern", "internship", "co-op", "coop", "new grad", "student"
+    "intern", "internship", "co-op", "coop", "student"
+]
+
+EXCLUDE_KEYWORDS = [
+    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
+    "graduate research", "ms intern", "masters intern", "mba intern",
 ]
 
 
@@ -43,4 +48,4 @@ def fetch(company: dict) -> list[dict]:
 
 def _is_relevant(title: str) -> bool:
     t = title.lower()
-    return any(kw in t for kw in KEYWORDS)
+    return any(kw in t for kw in KEYWORDS) and not any(ex in t for ex in EXCLUDE_KEYWORDS)

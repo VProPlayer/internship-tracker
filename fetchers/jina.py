@@ -12,20 +12,24 @@ JINA_BASE = "https://r.jina.ai/"
 EXTRACTION_PROMPT = """
 You are extracting internship job postings from the text of a company careers page.
 
-A posting counts as a match if it is an internship or co-op role that a
-Computer Science student or related field student could reasonably apply to.
+A posting counts as a match if it is an undergraduate internship or co-op role
+that a Computer Science student or related field student could reasonably apply to.
 
 Include: software engineering, machine learning, AI, data science, data
 engineering, product management, solutions engineering, IT, systems,
-hardware engineering, research, and similar technical roles.
+hardware engineering, research, and similar technical roles at the undergrad level.
 
-Exclude: finance-only roles, HR, marketing, legal, and roles that
-explicitly require non-technical degrees with no CS crossover.
+Exclude:
+- PhD, doctoral, or graduate research internships
+- Postdoc or post-doctoral roles
+- Roles explicitly requiring a master's or PhD degree
+- Finance-only roles, HR, marketing, legal, and roles that explicitly require
+  non-technical degrees with no CS crossover
 
 Location: United States only. Include remote roles open to US applicants.
 Exclude roles located entirely outside the US.
 
-When in doubt, include it.
+When in doubt about level, include it. When in doubt about location, exclude it.
 
 Return a JSON array of objects with keys: title, url, location.
 Return an empty array [] if no matching postings are found.

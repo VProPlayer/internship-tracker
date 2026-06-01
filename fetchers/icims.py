@@ -5,7 +5,12 @@ import requests
 SEARCH_TEMPLATE = "{base}/search?ql=jobtitle%3D%22intern%22+OR+jobtitle%3D%22co-op%22&icalinternal=0&ss=1&in_iframe=1"
 
 KEYWORDS = [
-    "intern", "internship", "co-op", "coop", "new grad", "student"
+    "intern", "internship", "co-op", "coop", "student"
+]
+
+EXCLUDE_KEYWORDS = [
+    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
+    "graduate research", "ms intern", "masters intern", "mba intern",
 ]
 
 HEADERS = {
@@ -52,7 +57,7 @@ def fetch(company: dict) -> list[dict]:
 
 def _is_relevant(title: str) -> bool:
     t = title.lower()
-    return any(kw in t for kw in KEYWORDS)
+    return any(kw in t for kw in KEYWORDS) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
 
 
 def _fallback_id(company: str, title: str, url: str) -> str:

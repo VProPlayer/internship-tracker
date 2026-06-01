@@ -1,8 +1,6 @@
 name: Internship Tracker
 
 on:
-  push:
-    branches: [master]
   schedule:
     - cron: '0 6 * * 1-5'   # 1:00 AM ET, Mon–Fri
   workflow_dispatch:          # manual trigger from GitHub UI

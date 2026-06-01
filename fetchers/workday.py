@@ -5,7 +5,12 @@ import requests
 BASE_URL = "https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
 
 KEYWORDS = [
-    "intern", "internship", "co-op", "coop", "new grad", "student"
+    "intern", "internship", "co-op", "coop", "student"
+]
+
+EXCLUDE_KEYWORDS = [
+    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
+    "graduate research", "ms intern", "masters intern", "mba intern",
 ]
 
 HEADERS = {
@@ -69,7 +74,7 @@ def fetch(company: dict) -> list[dict]:
 
 def _is_relevant(title: str) -> bool:
     t = title.lower()
-    return any(kw in t for kw in KEYWORDS)
+    return any(kw in t for kw in KEYWORDS) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
 
 
 def _fallback_id(company: str, title: str, url: str) -> str:
