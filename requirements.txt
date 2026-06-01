@@ -1,0 +1,5 @@
+supabase
+google-generativeai
+resend
+requests
+python-dotenv

@@ -1,0 +1,108 @@
+[
+  {
+    "name": "ANTHROPIC",
+    "type": "greenhouse",
+    "slug": "anthropic"
+  },
+  {
+    "name": "SPACEX",
+    "type": "greenhouse",
+    "slug": "spacex"
+  },
+  {
+    "name": "WAYMO",
+    "type": "greenhouse",
+    "slug": "waymo"
+  },
+  {
+    "name": "DATABRICKS",
+    "type": "greenhouse",
+    "slug": "databricks"
+  },
+  {
+    "name": "RED HAT",
+    "type": "workday",
+    "tenant": "redhat",
+    "site": "Jobs"
+  },
+  {
+    "name": "RIVIAN",
+    "type": "icims",
+    "url": "https://careers.rivian.com/careers-home/jobs"
+  },
+  {
+    "name": "SAS",
+    "type": "icims",
+    "url": "https://globalcareers-sas.icims.com/jobs/intro"
+  },
+  {
+    "name": "NVIDIA",
+    "type": "custom",
+    "url": "https://jobs.nvidia.com"
+  },
+  {
+    "name": "GOOGLE",
+    "type": "custom",
+    "url": "https://www.google.com/about/careers/applications/"
+  },
+  {
+    "name": "APPLE",
+    "type": "custom",
+    "url": "https://jobs.apple.com"
+  },
+  {
+    "name": "AMD",
+    "type": "custom",
+    "url": "https://careers.amd.com"
+  },
+  {
+    "name": "TESLA",
+    "type": "custom",
+    "url": "https://www.tesla.com/careers"
+  },
+  {
+    "name": "QUALCOMM",
+    "type": "custom",
+    "url": "https://careers.qualcomm.com"
+  },
+  {
+    "name": "IBM",
+    "type": "custom",
+    "url": "https://careers.ibm.com"
+  },
+  {
+    "name": "LENOVO",
+    "type": "custom",
+    "url": "https://jobs.lenovo.com"
+  },
+  {
+    "name": "NETAPP",
+    "type": "custom",
+    "url": "https://careers.netapp.com"
+  },
+  {
+    "name": "FIDELITY INVESTMENTS",
+    "type": "custom",
+    "url": "https://jobs.fidelity.com"
+  },
+  {
+    "name": "CISCO",
+    "type": "custom",
+    "url": "https://careers.cisco.com"
+  },
+  {
+    "name": "MICROSOFT",
+    "type": "custom",
+    "url": "https://careers.microsoft.com"
+  },
+  {
+    "name": "AMAZON",
+    "type": "custom",
+    "url": "https://amazon.jobs"
+  },
+  {
+    "name": "OPENAI",
+    "type": "custom",
+    "url": "https://openai.com/careers/search/"
+  }
+]
