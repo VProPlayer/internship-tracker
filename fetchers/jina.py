@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import time
 
 import google.generativeai as genai
 import requests
@@ -84,11 +85,12 @@ def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
         raise RuntimeError("GEMINI_API_KEY not set")
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-3.5-flash")
+    model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
     prompt = EXTRACTION_PROMPT.format(content=content)
 
     try:
+        time.sleep(4)
         response = model.generate_content(prompt)
         text = response.text.strip()
     except Exception as e:

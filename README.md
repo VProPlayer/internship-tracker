@@ -24,7 +24,7 @@ Monitors 21 company careers pages every weekday morning and emails you a digest 
 | Email | Resend (shared domain `onboarding@resend.dev`) |
 | Runtime | Python 3.12, no web framework |
 
-The Gemini model in use is `gemini-3.5-flash`.
+The Gemini model in use is `gemini-3.1-flash-lite`.
 
 ---
 
