@@ -6,7 +6,7 @@ Monitors 21 company careers pages every weekday morning and emails you a digest 
 
 ## What It Does
 
-1. Fetches job postings from 21 companies using their native APIs (Greenhouse, Workday, iCIMS) or, for companies without a structured API, scrapes the careers page via Jina Reader and extracts postings with Gemini Flash.
+1. Fetches job postings from companies of your choice using their native APIs (Greenhouse, Workday, iCIMS) or, for companies without a structured API, scrapes the careers page via Jina Reader and extracts postings with Gemini Flash.
 2. Compares every posting against a Supabase table (`seen_jobs`) to deduplicate across runs.
 3. If new postings are found, sends a plain-text email digest via Resend.
 4. Runs automatically Monday–Friday at 1:00 AM ET via GitHub Actions. If the run fails entirely, a separate failure alert is sent.
