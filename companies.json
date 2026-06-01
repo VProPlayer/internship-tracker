@@ -27,12 +27,12 @@
   },
   {
     "name": "RIVIAN",
-    "type": "icims",
+    "type": "custom",
     "url": "https://careers.rivian.com/careers-home/jobs"
   },
   {
     "name": "SAS",
-    "type": "icims",
+    "type": "custom",
     "url": "https://globalcareers-sas.icims.com/jobs/intro"
   },
   {

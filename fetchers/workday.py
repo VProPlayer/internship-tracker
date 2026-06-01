@@ -2,7 +2,7 @@ import requests
 
 # Workday uses a standardized jobs endpoint across tenants.
 # We POST a search query and page through results.
-BASE_URL = "https://wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
+BASE_URL = "https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
 
 KEYWORDS = [
     "intern", "internship", "co-op", "coop", "new grad", "student"
