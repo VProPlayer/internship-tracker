@@ -1,28 +1,10 @@
 import hashlib
-import re
 import requests
 
-from fetchers import is_us_location
+from fetchers import EXCLUDE_KEYWORDS, KEYWORD_RE, is_us_location
 
 # iCIMS exposes a REST API. We use the /search endpoint with a keyword filter.
 SEARCH_TEMPLATE = "{base}/search?ql=jobtitle%3D%22intern%22+OR+jobtitle%3D%22co-op%22&icalinternal=0&ss=1&in_iframe=1"
-
-_KEYWORD_RE = re.compile(
-    r'\bintern(?:ship)?s?\b|\bco-?op\b',
-    re.IGNORECASE,
-)
-
-EXCLUDE_KEYWORDS = [
-    # degree level
-    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
-    "graduate research", "ms intern", "masters intern", "mba intern",
-    "graduate intern", "grad intern", "meng", "m.eng",
-    # seniority / non-intern roles
-    "senior", "staff", "director", "manager", "head of", "principal",
-    "vice president", "account executive", "accountant", "sr.",
-    "project planner", "program manager", "operations specialist",
-    "specialist", "lead,", ", lead",
-]
 
 HEADERS = {
     "Accept": "application/json",
@@ -50,11 +32,11 @@ def fetch(company: dict) -> list[dict]:
 
         job_url = item.get("detailUrl", item.get("url", ""))
         location = item.get("joblocation", item.get("location", ""))
+
         if not is_us_location(location):
             continue
 
         job_id = item.get("jobId", item.get("id", ""))
-
         if not job_id:
             job_id = _fallback_id(company["name"], title, job_url)
 
@@ -71,7 +53,7 @@ def fetch(company: dict) -> list[dict]:
 
 def _is_relevant(title: str) -> bool:
     t = title.lower()
-    return bool(_KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
+    return bool(KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
 
 
 def _fallback_id(company: str, title: str, url: str) -> str:

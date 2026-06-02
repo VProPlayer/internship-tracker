@@ -1,5 +1,5 @@
 supabase
-google-generativeai
+google-genai
 resend
 requests
 python-dotenv

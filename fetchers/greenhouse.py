@@ -1,27 +1,8 @@
-import re
 import requests
 
-from fetchers import is_us_location
+from fetchers import EXCLUDE_KEYWORDS, KEYWORD_RE, is_us_location
 
 BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
-
-# Word-boundary patterns — prevents matching "internal" / "international"
-_KEYWORD_RE = re.compile(
-    r'\bintern(?:ship)?s?\b|\bco-?op\b',
-    re.IGNORECASE,
-)
-
-EXCLUDE_KEYWORDS = [
-    # degree level
-    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
-    "graduate research", "ms intern", "masters intern", "mba intern",
-    "graduate intern", "grad intern", "meng", "m.eng",
-    # seniority / non-intern roles
-    "senior", "staff", "director", "manager", "head of", "principal",
-    "vice president", "account executive", "accountant", "sr.",
-    "project planner", "program manager", "operations specialist",
-    "specialist", "lead,", ", lead",
-]
 
 
 def fetch(company: dict) -> list[dict]:
@@ -63,4 +44,4 @@ def fetch(company: dict) -> list[dict]:
 
 def _is_relevant(title: str) -> bool:
     t = title.lower()
-    return bool(_KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
+    return bool(KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)

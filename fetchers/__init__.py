@@ -1,5 +1,7 @@
 import re
 
+# ── Location filtering ────────────────────────────────────────────────────────
+
 _US_STATES = {
     "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
     "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
@@ -10,23 +12,37 @@ _US_STATES = {
 
 _US_TERMS = ("united states", "usa", "u.s.a", "u.s.", "remote", "hybrid")
 
-# Matches ", CA" / ", NY" etc. at end of location string or before a zip
 _STATE_RE = re.compile(r',\s*([A-Z]{2})(?:\s+\d{5})?(?:\s*$|,)', re.IGNORECASE)
 
 
 def is_us_location(location: str) -> bool:
     """Return True if location is US-based, remote, or unknown."""
     if not location:
-        return True  # no location data — don't exclude
-
+        return True
     loc = location.strip().lower()
-
     if any(term in loc for term in _US_TERMS):
         return True
-
-    # Check for state abbreviation pattern: "City, CA" or "City, CA 12345"
     m = _STATE_RE.search(location)
     if m and m.group(1).upper() in _US_STATES:
         return True
-
     return False
+
+
+# ── Job relevance filtering (shared by Greenhouse, Workday, iCIMS) ────────────
+
+KEYWORD_RE = re.compile(
+    r'\bintern(?:ship)?s?\b|\bco-?op\b|\bstudent\b',
+    re.IGNORECASE,
+)
+
+EXCLUDE_KEYWORDS = [
+    # degree level
+    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
+    "graduate research", "ms intern", "masters intern", "mba intern",
+    "graduate intern", "grad intern", "meng", "m.eng",
+    # seniority / non-intern roles
+    "senior", "staff", "director", "manager", "head of", "principal",
+    "vice president", "account executive", "accountant", "sr.",
+    "project planner", "program manager", "operations specialist",
+    "specialist", "lead,", ", lead",
+]

@@ -4,7 +4,7 @@ import os
 import re
 import time
 
-import google.generativeai as genai
+from google import genai
 import requests
 
 JINA_BASE = "https://r.jina.ai/"
@@ -87,14 +87,15 @@ def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY not set")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-3.1-flash-lite")
-
+    client = genai.Client(api_key=api_key)
     prompt = EXTRACTION_PROMPT.format(content=content)
 
     try:
         time.sleep(4)
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
         text = response.text.strip()
     except Exception as e:
         raise RuntimeError(f"Gemini extraction failed for {company_name}: {e}")
