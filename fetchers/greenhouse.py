@@ -1,6 +1,8 @@
 import re
 import requests
 
+from fetchers import is_us_location
+
 BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 
 # Word-boundary patterns — prevents matching "internal" / "international"
@@ -44,6 +46,9 @@ def fetch(company: dict) -> list[dict]:
         offices = job.get("offices", [])
         if offices:
             location = offices[0].get("name", "")
+
+        if not is_us_location(location):
+            continue
 
         jobs.append({
             "id": str(job["id"]),

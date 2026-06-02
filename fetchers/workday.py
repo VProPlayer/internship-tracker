@@ -1,6 +1,8 @@
 import re
 import requests
 
+from fetchers import is_us_location
+
 # Workday uses a standardized jobs endpoint across tenants.
 # We POST a search query and page through results.
 BASE_URL = "https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
@@ -64,6 +66,9 @@ def fetch(company: dict) -> list[dict]:
             job_id = job.get("externalPath", "").split("/")[-1]
             job_url = f"https://wd5.myworkdayjobs.com/{tenant}/{site}/job/{job.get('externalPath', '').lstrip('/')}"
             location = job.get("locationsText", "")
+
+            if not is_us_location(location):
+                continue
 
             jobs.append({
                 "id": job_id or _fallback_id(company["name"], title, job_url),

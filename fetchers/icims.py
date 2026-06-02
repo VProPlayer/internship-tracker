@@ -2,6 +2,8 @@ import hashlib
 import re
 import requests
 
+from fetchers import is_us_location
+
 # iCIMS exposes a REST API. We use the /search endpoint with a keyword filter.
 SEARCH_TEMPLATE = "{base}/search?ql=jobtitle%3D%22intern%22+OR+jobtitle%3D%22co-op%22&icalinternal=0&ss=1&in_iframe=1"
 
@@ -48,6 +50,9 @@ def fetch(company: dict) -> list[dict]:
 
         job_url = item.get("detailUrl", item.get("url", ""))
         location = item.get("joblocation", item.get("location", ""))
+        if not is_us_location(location):
+            continue
+
         job_id = item.get("jobId", item.get("id", ""))
 
         if not job_id:
