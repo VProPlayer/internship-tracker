@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import re
@@ -7,7 +6,10 @@ import time
 from google import genai
 import requests
 
+from fetchers import make_id
+
 JINA_BASE = "https://r.jina.ai/"
+CONTENT_LIMIT = 12000
 
 EXTRACTION_PROMPT = """
 You are extracting internship job postings from the text of a company careers page.
@@ -49,12 +51,11 @@ def fetch(company: dict) -> list[dict]:
         url = job.get("url", "").strip()
         location = job.get("location", "").strip()
 
-        if not title:
+        if not title or not url:
             continue
 
-        job_id = _make_id(company["name"], title, url)
         jobs.append({
-            "id": job_id,
+            "id": make_id(company["name"], title, url),
             "company": company["name"],
             "title": title,
             "url": url,
@@ -78,8 +79,12 @@ def _fetch_via_jina(url: str) -> str:
     except Exception as e:
         raise RuntimeError(f"Jina fetch failed for {url}: {e}")
 
-    # Trim to ~12k chars to stay within Gemini token limits
-    return resp.text[:12000]
+    content = resp.text
+    if len(content) > CONTENT_LIMIT:
+        print(f"[WARN] {url}: content truncated from {len(content)} to {CONTENT_LIMIT} chars — late postings may be missed")
+        content = content[:CONTENT_LIMIT]
+
+    return content
 
 
 def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
@@ -90,28 +95,36 @@ def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
     client = genai.Client(api_key=api_key)
     prompt = EXTRACTION_PROMPT.format(content=content)
 
-    try:
-        time.sleep(4)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
-        text = response.text.strip()
-    except Exception as e:
-        raise RuntimeError(f"Gemini extraction failed for {company_name}: {e}")
+    last_exc = None
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            text = response.text.strip()
+            break
+        except Exception as e:
+            last_exc = e
+            if attempt < 2 and _is_rate_limit(e):
+                wait = 5 * (2 ** attempt)  # 5s, 10s
+                print(f"[{company_name}] Rate limited — retrying in {wait}s")
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"Gemini extraction failed for {company_name}: {e}")
+    else:
+        raise RuntimeError(f"Gemini extraction failed for {company_name}: {last_exc}")
 
-    # Strip markdown code fences if Gemini wraps the output
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Gemini occasionally returns partial JSON — log and return empty
         print(f"[{company_name}] Gemini returned non-JSON: {text[:200]}")
         return []
 
 
-def _make_id(company: str, title: str, url: str) -> str:
-    raw = f"{company}{title}{url}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:16]
+def _is_rate_limit(e: Exception) -> bool:
+    msg = str(e).lower()
+    return "429" in msg or "quota" in msg or "rate" in msg

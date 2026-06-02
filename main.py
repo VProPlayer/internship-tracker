@@ -18,9 +18,12 @@ FETCHERS = {
     "custom": jina.fetch,
 }
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+COMPANIES_FILE = os.path.join(_HERE, "companies.json")
+
 
 def main():
-    with open("companies.json") as f:
+    with open(COMPANIES_FILE) as f:
         companies = json.load(f)
 
     all_fetched = []
@@ -31,7 +34,9 @@ def main():
         fetcher = FETCHERS.get(fetcher_type)
 
         if not fetcher:
-            print(f"[SKIP] {company['name']}: unknown type '{fetcher_type}'")
+            msg = f"{company['name']}: unknown type '{fetcher_type}'"
+            print(f"[SKIP] {msg}")
+            errors.append(msg)
             continue
 
         try:
@@ -55,7 +60,6 @@ def main():
         for e in errors:
             print(f"  - {e}")
 
-    # Exit non-zero only if ALL companies failed — partial failures are normal
     if len(errors) == len(companies):
         sys.exit(1)
 

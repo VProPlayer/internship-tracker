@@ -5,11 +5,14 @@ from supabase import create_client, Client
 
 TABLE = "seen_jobs"
 
+_client: Client | None = None
 
-def get_client() -> Client:
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_KEY"]
-    return create_client(url, key)
+
+def _get_client() -> Client:
+    global _client
+    if _client is None:
+        _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+    return _client
 
 
 def find_new_jobs(fetched: list[dict]) -> list[dict]:
@@ -20,12 +23,11 @@ def find_new_jobs(fetched: list[dict]) -> list[dict]:
     if not fetched:
         return []
 
-    client = get_client()
+    client = _get_client()
     now = datetime.now(timezone.utc).isoformat()
 
     fetched_ids = [job["id"] for job in fetched]
 
-    # Pull existing IDs in one query
     response = client.table(TABLE).select("id").in_("id", fetched_ids).execute()
     existing_ids = {row["id"] for row in response.data}
 
@@ -61,5 +63,4 @@ def find_new_jobs(fetched: list[dict]) -> list[dict]:
 def mark_notified(job_ids: list[str]) -> None:
     if not job_ids:
         return
-    client = get_client()
-    client.table(TABLE).update({"notified": True}).in_("id", job_ids).execute()
+    _get_client().table(TABLE).update({"notified": True}).in_("id", job_ids).execute()

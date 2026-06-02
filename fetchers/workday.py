@@ -1,6 +1,6 @@
 import requests
 
-from fetchers import EXCLUDE_KEYWORDS, KEYWORD_RE, is_us_location
+from fetchers import is_relevant, is_us_location, make_id
 
 # Workday uses a standardized jobs endpoint across tenants.
 # We POST a search query and page through results.
@@ -42,18 +42,20 @@ def fetch(company: dict) -> list[dict]:
 
         for job in postings:
             title = job.get("title", "")
-            if not _is_relevant(title):
+            if not is_relevant(title):
                 continue
 
-            job_id = job.get("externalPath", "").split("/")[-1]
-            job_url = f"https://wd5.myworkdayjobs.com/{tenant}/{site}/job/{job.get('externalPath', '').lstrip('/')}"
+            # externalPath already contains the full path (e.g. /tenant/site/job/Title_ID)
+            external_path = job.get("externalPath", "")
+            job_id = external_path.split("/")[-1]
+            job_url = f"https://wd5.myworkdayjobs.com{external_path}" if external_path else ""
             location = job.get("locationsText", "")
 
             if not is_us_location(location):
                 continue
 
             jobs.append({
-                "id": job_id or _fallback_id(company["name"], title, job_url),
+                "id": job_id or make_id(company["name"], title, job_url),
                 "company": company["name"],
                 "title": title,
                 "url": job_url,
@@ -66,14 +68,3 @@ def fetch(company: dict) -> list[dict]:
             break
 
     return jobs
-
-
-def _is_relevant(title: str) -> bool:
-    t = title.lower()
-    return bool(KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
-
-
-def _fallback_id(company: str, title: str, url: str) -> str:
-    import hashlib
-    raw = f"{company}{title}{url}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:16]

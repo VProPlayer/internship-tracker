@@ -5,8 +5,11 @@ from datetime import date
 
 import resend
 
-RECIPIENT = "vkchaudhari2007@gmail.com"
+RECIPIENT = os.getenv("RECIPIENT_EMAIL", "vkchaudhari2007@gmail.com")
 SENDER = "Internship Tracker <onboarding@resend.dev>"
+
+# Set once at import time — load_dotenv() is called before this module is imported
+resend.api_key = os.getenv("RESEND_API_KEY", "")
 
 
 def send_success(new_jobs: list[dict]) -> None:
@@ -55,8 +58,6 @@ def _build_success_body(jobs: list[dict], today: str, company_count: int) -> str
 
 
 def _send(subject: str, body: str) -> None:
-    resend.api_key = os.environ["RESEND_API_KEY"]
-
     params: resend.Emails.SendParams = {
         "from": SENDER,
         "to": [RECIPIENT],
@@ -69,9 +70,23 @@ def _send(subject: str, body: str) -> None:
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
+    resend.api_key = os.environ["RESEND_API_KEY"]
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--failure", metavar="ERROR", help="Send a failure alert with this message")
+    parser.add_argument("--test", action="store_true", help="Send a test success email with mock data")
     args = parser.parse_args()
 
     if args.failure:
         send_failure(args.failure)
+    elif args.test:
+        mock_jobs = [
+            {"company": "ACME CORP", "title": "Software Engineering Intern", "url": "https://example.com/jobs/1", "location": "San Francisco, CA"},
+            {"company": "ACME CORP", "title": "Machine Learning Intern", "url": "https://example.com/jobs/2", "location": "Remote"},
+            {"company": "INITECH", "title": "Data Engineering Co-op", "url": "https://example.com/jobs/3", "location": "Austin, TX"},
+        ]
+        send_success(mock_jobs)
+    else:
+        parser.print_help()

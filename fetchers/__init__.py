@@ -1,3 +1,4 @@
+import hashlib
 import re
 
 # ── Location filtering ────────────────────────────────────────────────────────
@@ -46,3 +47,14 @@ EXCLUDE_KEYWORDS = [
     "project planner", "program manager", "operations specialist",
     "specialist", "lead,", ", lead",
 ]
+
+
+def is_relevant(title: str) -> bool:
+    t = title.lower()
+    return bool(KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
+
+
+# ── Stable ID generation (shared by Workday, iCIMS, Jina) ────────────────────
+
+def make_id(company: str, title: str, url: str) -> str:
+    return hashlib.sha256(f"{company}{title}{url}".encode()).hexdigest()[:16]

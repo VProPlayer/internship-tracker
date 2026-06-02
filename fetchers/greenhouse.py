@@ -1,6 +1,6 @@
 import requests
 
-from fetchers import EXCLUDE_KEYWORDS, KEYWORD_RE, is_us_location
+from fetchers import is_relevant, is_us_location
 
 BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 
@@ -20,7 +20,7 @@ def fetch(company: dict) -> list[dict]:
 
     for job in data.get("jobs", []):
         title = job.get("title", "")
-        if not _is_relevant(title):
+        if not is_relevant(title):
             continue
 
         location = ""
@@ -40,8 +40,3 @@ def fetch(company: dict) -> list[dict]:
         })
 
     return jobs
-
-
-def _is_relevant(title: str) -> bool:
-    t = title.lower()
-    return bool(KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
