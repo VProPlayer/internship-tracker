@@ -12,28 +12,27 @@ JINA_BASE = "https://r.jina.ai/"
 EXTRACTION_PROMPT = """
 You are extracting internship job postings from the text of a company careers page.
 
-A posting counts as a match if it is an undergraduate internship or co-op role
-that a Computer Science student or related field student could reasonably apply to.
+A posting counts as a match ONLY if ALL of the following are true:
+1. The job title explicitly contains "Intern", "Internship", or "Co-op" (or "Coop").
+2. It is targeted at undergraduate (BS/BA) students — NOT graduate, MS, PhD, or MBA students.
+3. It is in a technical field: software engineering, machine learning, AI, data science,
+   data engineering, hardware engineering, IT, systems, or research at the undergrad level.
+4. The location is in the United States, or the role is remote and open to US applicants.
 
-Include: software engineering, machine learning, AI, data science, data
-engineering, product management, solutions engineering, IT, systems,
-hardware engineering, research, and similar technical roles at the undergrad level.
+Exclude ALL of the following — even if the title contains "intern" or "co-op":
+- Roles with seniority prefixes: Senior, Staff, Principal, Lead, Director, Manager, Head of, VP, Sr.
+- Full-time roles (no "intern" or "co-op" in the title)
+- PhD intern, doctoral intern, graduate intern, grad intern, MS intern, masters intern, MBA intern
+- Roles requiring a master's or PhD as minimum or preferred qualification
+- Non-technical roles: finance, accounting, HR, marketing, legal, communications, operations
+- Roles located entirely outside the United States
 
-Exclude:
-- PhD, doctoral, or graduate research internships
-- Postdoc or post-doctoral roles
-- Roles explicitly requiring a master's or PhD degree
-- Finance-only roles, HR, marketing, legal, and roles that explicitly require
-  non-technical degrees with no CS crossover
-
-Location: United States only. Include remote roles open to US applicants.
-Exclude roles located entirely outside the US.
-
-When in doubt about level, include it. When in doubt about location, exclude it.
+When in doubt about level, EXCLUDE it.
+When in doubt about location, EXCLUDE it.
 
 Return a JSON array of objects with keys: title, url, location.
 Return an empty array [] if no matching postings are found.
-Return ONLY the JSON array, no markdown, no explanation.
+Return ONLY the JSON array — no markdown, no explanation, no code fences.
 
 Careers page content:
 {content}
