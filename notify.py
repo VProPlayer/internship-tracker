@@ -5,7 +5,7 @@ from datetime import date
 
 import resend
 
-RECIPIENT = os.getenv("RECIPIENT_EMAIL", "vkchaudhari2007@gmail.com")
+RECIPIENT = os.environ["RECIPIENT_EMAIL"]
 SENDER = "Internship Tracker <onboarding@resend.dev>"
 
 # Set once at import time — load_dotenv() is called before this module is imported
