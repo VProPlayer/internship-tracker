@@ -9,7 +9,7 @@ Monitors 21 company careers pages every weekday morning and emails you a digest 
 1. Fetches job postings from companies of your choice using their native APIs (Greenhouse, Workday, iCIMS) or, for companies without a structured API, scrapes the careers page via Jina Reader and extracts postings with Gemini Flash.
 2. Compares every posting against a Supabase table (`seen_jobs`) to deduplicate across runs.
 3. If new postings are found, sends a plain-text email digest via Resend.
-4. Runs automatically Monday–Friday at 1:00 AM ET via GitHub Actions. If the run fails entirely, a separate failure alert is sent.
+4. Runs automatically Monday–Friday at 6:00 AM UTC (2:00 AM EDT) via GitHub Actions. If the run fails entirely, a separate failure alert is sent.
 
 ---
 
@@ -69,7 +69,7 @@ You need the following before proceeding:
 
 GitHub Actions reads secrets from your repository settings — **not** from your local `.env` file. You must add them manually through the GitHub UI.
 
-In your forked repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add each of the five keys below by their exact names:
+In your forked repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add each of the six keys below by their exact names:
 
 | Secret name | Value |
 |---|---|
@@ -78,18 +78,13 @@ In your forked repository, go to **Settings → Secrets and variables → Action
 | `GEMINI_API_KEY` | Your Google AI Studio key |
 | `RESEND_API_KEY` | Your Resend API key |
 | `JINA_API_KEY` | Your Jina AI key (optional) |
+| `RECIPIENT_EMAIL` | The email address that will receive digest and failure alerts |
 
 The workflow at `.github/workflows/run.yml` injects these as environment variables at runtime. Your local `.env` file is ignored by GitHub Actions entirely — it only exists for local runs.
 
-### 5. Update the Recipient Email
+### 5. Set the Recipient Email
 
-Open `notify.py` and change the `RECIPIENT` constant at the top of the file to your email address:
-
-```python
-RECIPIENT = "you@example.com"
-```
-
-Commit and push the change to your fork.
+The recipient address is read from the `RECIPIENT_EMAIL` secret you added in the previous step. No code change is required — `notify.py` reads `os.environ["RECIPIENT_EMAIL"]` at runtime. Confirm the secret is set correctly in **Settings → Secrets and variables → Actions**.
 
 ### 6. Trigger a Manual Run
 
@@ -195,6 +190,7 @@ SUPABASE_KEY=your-anon-key
 GEMINI_API_KEY=your-gemini-key
 RESEND_API_KEY=your-resend-key
 JINA_API_KEY=your-jina-key
+RECIPIENT_EMAIL=you@example.com
 ```
 
 `python-dotenv` loads this file automatically when `main.py` runs. Do not commit `.env` — it is listed in `.gitignore`.
@@ -221,6 +217,7 @@ internship-tracker/
 ├── companies.json        # List of tracked companies
 ├── requirements.txt
 ├── fetchers/
+│   ├── __init__.py       # Shared filtering helpers (KEYWORD_RE, is_relevant, is_us_location, make_id)
 │   ├── greenhouse.py     # Greenhouse JSON API
 │   ├── workday.py        # Workday CXS API
 │   ├── icims.py          # iCIMS REST API
