@@ -59,8 +59,6 @@ def main():
         print(f"\n{len(errors)} company/companies had errors:")
         for e in errors:
             print(f"  - {e}")
-
-    if len(errors) == len(companies):
         sys.exit(1)
 
 

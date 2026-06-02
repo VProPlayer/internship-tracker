@@ -11,6 +11,8 @@ HEADERS = {
     "Accept": "application/json",
 }
 
+MAX_PAGES = 20  # safety cap (~400 jobs); guards against infinite loop on malformed `total`
+
 
 def fetch(company: dict) -> list[dict]:
     tenant = company["tenant"]
@@ -21,7 +23,7 @@ def fetch(company: dict) -> list[dict]:
     offset = 0
     limit = 20
 
-    while True:
+    for page in range(MAX_PAGES):
         payload = {
             "appliedFacets": {},
             "limit": limit,
@@ -66,5 +68,7 @@ def fetch(company: dict) -> list[dict]:
         offset += limit
         if offset >= total:
             break
+    else:
+        print(f"[WARN] {company['name']}: hit MAX_PAGES ({MAX_PAGES}) — some postings may be missed")
 
     return jobs

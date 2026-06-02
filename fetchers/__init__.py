@@ -36,22 +36,26 @@ KEYWORD_RE = re.compile(
     re.IGNORECASE,
 )
 
-EXCLUDE_KEYWORDS = [
-    # degree level
-    "phd", "ph.d", "doctoral", "doctorate", "postdoc", "post-doc",
-    "graduate research", "ms intern", "masters intern", "mba intern",
-    "graduate intern", "grad intern", "meng", "m.eng",
-    # seniority / non-intern roles
-    "senior", "staff", "director", "manager", "head of", "principal",
-    "vice president", "account executive", "accountant", "sr.",
-    "project planner", "program manager", "operations specialist",
-    "specialist", "lead,", ", lead",
-]
+# Regex-based exclusion with word boundaries — avoids false negatives from bare
+# substring matching (e.g. "specialist" no longer blocks "ML Specialist Intern";
+# "lead" is matched as a standalone word, not via fragile comma heuristics).
+_EXCLUDE_RE = re.compile(
+    r'\b(?:'
+    # degree / academic level
+    r'ph\.?d|doctoral|doctorate|postdoc|post-doc|'
+    r'graduate\s+research|ms\s+intern|masters\s+intern|mba\s+intern|'
+    r'graduate\s+intern|grad\s+intern|m\.?eng|'
+    # seniority & non-intern roles
+    r'senior|sr\.|staff|director|manager|principal|head\s+of|'
+    r'vice\s+president|account\s+executive|accountant|'
+    r'project\s+planner|program\s+manager|operations\s+specialist|lead'
+    r')\b',
+    re.IGNORECASE,
+)
 
 
 def is_relevant(title: str) -> bool:
-    t = title.lower()
-    return bool(KEYWORD_RE.search(t)) and not any(ex in t for ex in EXCLUDE_KEYWORDS)
+    return bool(KEYWORD_RE.search(title)) and not bool(_EXCLUDE_RE.search(title))
 
 
 # ── Stable ID generation (shared by Workday, iCIMS, Jina) ────────────────────

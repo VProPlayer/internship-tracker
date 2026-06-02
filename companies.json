@@ -32,8 +32,8 @@
   },
   {
     "name": "SAS",
-    "type": "custom",
-    "url": "https://globalcareers-sas.icims.com/jobs/intro"
+    "type": "icims",
+    "url": "https://globalcareers-sas.icims.com"
   },
   {
     "name": "NVIDIA",

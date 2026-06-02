@@ -9,7 +9,7 @@ import requests
 from fetchers import make_id
 
 JINA_BASE = "https://r.jina.ai/"
-CONTENT_LIMIT = 12000
+CONTENT_LIMIT = 40000  # raised from 12k; Gemini flash handles ~1M tokens so 40k chars (~10k tokens) is well within range
 
 EXTRACTION_PROMPT = """
 You are extracting internship job postings from the text of a company careers page.
@@ -39,6 +39,19 @@ Return ONLY the JSON array — no markdown, no explanation, no code fences.
 Careers page content:
 {content}
 """
+
+_gemini_client: genai.Client | None = None
+
+
+def _get_gemini_client() -> genai.Client:
+    """Return a cached Gemini client, initializing it once per process."""
+    global _gemini_client
+    if _gemini_client is None:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY not set")
+        _gemini_client = genai.Client(api_key=api_key)
+    return _gemini_client
 
 
 def fetch(company: dict) -> list[dict]:
@@ -81,40 +94,46 @@ def _fetch_via_jina(url: str) -> str:
 
     content = resp.text
     if len(content) > CONTENT_LIMIT:
-        print(f"[WARN] {url}: content truncated from {len(content)} to {CONTENT_LIMIT} chars — late postings may be missed")
-        content = content[:CONTENT_LIMIT]
+        # Truncate at the last newline before the limit so we never cut mid-line
+        cutoff = content.rfind("\n", 0, CONTENT_LIMIT)
+        cutoff = cutoff if cutoff > 0 else CONTENT_LIMIT
+        print(
+            f"[WARN] {url}: content truncated from {len(content)} to {cutoff} chars "
+            f"— postings beyond that point will be missed"
+        )
+        content = content[:cutoff]
 
     return content
 
 
-def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY not set")
+def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
+    """
+    Send `prompt` to Gemini and return the raw response text.
+    Retries up to 3 times with exponential backoff on rate-limit errors only.
+    """
+    client = _get_gemini_client()
 
-    client = genai.Client(api_key=api_key)
-    prompt = EXTRACTION_PROMPT.format(content=content)
-
-    last_exc = None
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-3.1-flash-lite",
+                model="gemini-2.0-flash-lite",
                 contents=prompt,
             )
-            text = response.text.strip()
-            break
+            return response.text.strip()
         except Exception as e:
-            last_exc = e
             if attempt < 2 and _is_rate_limit(e):
                 wait = 5 * (2 ** attempt)  # 5s, 10s
                 print(f"[{company_name}] Rate limited — retrying in {wait}s")
                 time.sleep(wait)
             else:
                 raise RuntimeError(f"Gemini extraction failed for {company_name}: {e}")
-    else:
-        raise RuntimeError(f"Gemini extraction failed for {company_name}: {last_exc}")
 
+    # Unreachable — every branch above returns or raises — but satisfies type checkers
+    raise RuntimeError(f"Gemini extraction failed for {company_name}: all retries exhausted")
+
+
+def _parse_gemini_response(text: str, company_name: str) -> list[dict]:
+    """Strip optional markdown fences and parse the JSON array from a Gemini response."""
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
@@ -123,6 +142,13 @@ def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
     except json.JSONDecodeError:
         print(f"[{company_name}] Gemini returned non-JSON: {text[:200]}")
         return []
+
+
+def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
+    """Orchestrate Gemini extraction: build prompt → call API → parse response."""
+    prompt = EXTRACTION_PROMPT.format(content=content)
+    raw_text = _call_gemini_with_retry(prompt, company_name)
+    return _parse_gemini_response(raw_text, company_name)
 
 
 def _is_rate_limit(e: Exception) -> bool:

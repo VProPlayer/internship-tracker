@@ -3,7 +3,13 @@ import requests
 from fetchers import is_relevant, is_us_location, make_id
 
 # iCIMS exposes a REST API. We use the /search endpoint with a keyword filter.
-SEARCH_TEMPLATE = "{base}/search?ql=jobtitle%3D%22intern%22+OR+jobtitle%3D%22co-op%22&icalinternal=0&ss=1&in_iframe=1"
+SEARCH_PATH = "/search"
+SEARCH_PARAMS = {
+    "ql": 'jobtitle="intern" OR jobtitle="co-op"',
+    "icalinternal": "0",
+    "ss": "1",
+    "in_iframe": "1",
+}
 
 HEADERS = {
     "Accept": "application/json",
@@ -12,10 +18,10 @@ HEADERS = {
 
 def fetch(company: dict) -> list[dict]:
     base_url = company["url"].rstrip("/")
-    search_url = SEARCH_TEMPLATE.format(base=base_url)
+    search_url = base_url + SEARCH_PATH
 
     try:
-        resp = requests.get(search_url, headers=HEADERS, timeout=15)
+        resp = requests.get(search_url, headers=HEADERS, params=SEARCH_PARAMS, timeout=15)
         resp.raise_for_status()
     except Exception as e:
         raise RuntimeError(f"iCIMS fetch failed for {company['name']}: {e}")

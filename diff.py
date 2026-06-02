@@ -1,18 +1,34 @@
 import os
+import threading
 from datetime import datetime, timezone
+from typing import Generator
 
 from supabase import create_client, Client
 
 TABLE = "seen_jobs"
 
+# Supabase/PostgREST enforces URL length limits; large `.in_()` lists and bulk
+# inserts can silently fail or be rejected beyond this size.
+BATCH_SIZE = 200
+
 _client: Client | None = None
+_client_lock = threading.Lock()
 
 
 def _get_client() -> Client:
+    """Return a cached Supabase client; thread-safe via double-checked locking."""
     global _client
     if _client is None:
-        _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+        with _client_lock:
+            if _client is None:  # re-check after acquiring the lock
+                _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     return _client
+
+
+def _chunks(lst: list, size: int) -> Generator[list, None, None]:
+    """Yield successive fixed-size chunks from lst."""
+    for i in range(0, len(lst), size):
+        yield lst[i : i + size]
 
 
 def find_new_jobs(fetched: list[dict]) -> list[dict]:
@@ -28,8 +44,11 @@ def find_new_jobs(fetched: list[dict]) -> list[dict]:
 
     fetched_ids = [job["id"] for job in fetched]
 
-    response = client.table(TABLE).select("id").in_("id", fetched_ids).execute()
-    existing_ids = {row["id"] for row in response.data}
+    # SELECT in batches to stay within URL length limits
+    existing_ids: set[str] = set()
+    for batch in _chunks(fetched_ids, BATCH_SIZE):
+        response = client.table(TABLE).select("id").in_("id", batch).execute()
+        existing_ids.update(row["id"] for row in response.data)
 
     new_jobs = []
     rows_to_insert = []
@@ -51,11 +70,13 @@ def find_new_jobs(fetched: list[dict]) -> list[dict]:
                 "notified": False,
             })
 
-    if rows_to_insert:
-        client.table(TABLE).insert(rows_to_insert).execute()
+    # INSERT in batches
+    for batch in _chunks(rows_to_insert, BATCH_SIZE):
+        client.table(TABLE).insert(batch).execute()
 
-    if ids_to_update:
-        client.table(TABLE).update({"last_seen": now}).in_("id", ids_to_update).execute()
+    # UPDATE in batches
+    for batch in _chunks(ids_to_update, BATCH_SIZE):
+        client.table(TABLE).update({"last_seen": now}).in_("id", batch).execute()
 
     return new_jobs
 
@@ -63,4 +84,6 @@ def find_new_jobs(fetched: list[dict]) -> list[dict]:
 def mark_notified(job_ids: list[str]) -> None:
     if not job_ids:
         return
-    _get_client().table(TABLE).update({"notified": True}).in_("id", job_ids).execute()
+    client = _get_client()
+    for batch in _chunks(job_ids, BATCH_SIZE):
+        client.table(TABLE).update({"notified": True}).in_("id", batch).execute()
