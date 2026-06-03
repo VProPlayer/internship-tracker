@@ -116,7 +116,7 @@ def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-2.0-flash-lite",
+                model="gemini-3.1-flash-lite",
                 contents=prompt,
             )
             return response.text.strip()
