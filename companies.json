@@ -54,7 +54,7 @@
   {
     "name": "GOOGLE",
     "type": "custom",
-    "url": "https://www.google.com/about/careers/applications/"
+    "url": "https://careers.google.com/jobs/results/?employment_type=INTERN&location=United+States"
   },
   {
     "name": "APPLE",
@@ -64,7 +64,7 @@
   {
     "name": "AMD",
     "type": "custom",
-    "url": "https://careers.amd.com"
+    "url": "https://careers.amd.com/careers-home/jobs?keywords=intern&location=United+States"
   },
   {
     "name": "TESLA",
@@ -79,7 +79,7 @@
   {
     "name": "IBM",
     "type": "custom",
-    "url": "https://careers.ibm.com"
+    "url": "https://www.ibm.com/careers/search?q=intern&country=us"
   },
   {
     "name": "LENOVO",
@@ -94,7 +94,7 @@
   {
     "name": "CISCO",
     "type": "custom",
-    "url": "https://careers.cisco.com/global/en/search-results?category=Internships%2C+Apprenticeships%2C+and+Co-Ops"
+    "url": "https://careers.cisco.com/global/en/search-results?category=Internships%2C+Apprenticeships%2C+and+Co-Ops&location=United+States"
   },
   {
     "name": "MICROSOFT",
@@ -104,7 +104,7 @@
   {
     "name": "AMAZON",
     "type": "custom",
-    "url": "https://amazon.jobs"
+    "url": "https://amazon.jobs/en/search?base_query=intern+software&loc_query=United+States"
   },
   {
     "name": "OPENAI",
