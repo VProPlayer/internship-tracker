@@ -27,9 +27,8 @@
   },
   {
     "name": "FIDELITY INVESTMENTS",
-    "type": "workday",
-    "tenant": "fil",
-    "site": "001"
+    "type": "custom",
+    "url": "https://jobs.fidelity.com/en/students/internships/"
   },
   {
     "name": "NVIDIA",
