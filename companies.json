@@ -63,8 +63,7 @@
   },
   {
     "name": "AMD",
-    "type": "custom",
-    "url": "https://internal-amd.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
+    "type": "amd"
   },
   {
     "name": "TESLA",
