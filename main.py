@@ -5,11 +5,11 @@ import traceback
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from fetchers import greenhouse, workday, icims, jina, ashby, amazon, phenom
 import diff
 import notify
+
+load_dotenv()
 
 FETCHERS = {
     "greenhouse": greenhouse.fetch,

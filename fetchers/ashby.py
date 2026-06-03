@@ -1,17 +1,13 @@
-import requests
-
-from fetchers import is_relevant, is_us_location
+from fetchers import http_get, is_relevant, is_us_location
 
 BASE_URL = "https://api.ashbyhq.com/posting-api/job-board/{board_handle}"
 
 
 def fetch(company: dict) -> list[dict]:
-    board_handle = company["board_handle"]
-    url = BASE_URL.format(board_handle=board_handle)
+    url = BASE_URL.format(board_handle=company["board_handle"])
 
     try:
-        resp = requests.get(url, timeout=15)
-        resp.raise_for_status()
+        resp = http_get(url)
     except Exception as e:
         raise RuntimeError(f"Ashby fetch failed for {company['name']}: {e}")
 

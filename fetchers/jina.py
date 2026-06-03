@@ -4,9 +4,8 @@ import re
 import time
 
 from google import genai
-import requests
 
-from fetchers import make_id
+from fetchers import http_get, make_id
 
 JINA_BASE = "https://r.jina.ai/"
 CONTENT_LIMIT = 40000  # raised from 12k; Gemini flash handles ~1M tokens so 40k chars (~10k tokens) is well within range
@@ -94,8 +93,7 @@ def _fetch_via_jina(url: str) -> str:
         headers["Authorization"] = f"Bearer {api_key}"
 
     try:
-        resp = requests.get(jina_url, headers=headers, timeout=30)
-        resp.raise_for_status()
+        resp = http_get(jina_url, headers=headers, timeout=30)
     except Exception as e:
         raise RuntimeError(f"Jina fetch failed for {url}: {e}")
 
@@ -114,11 +112,9 @@ def _fetch_via_jina(url: str) -> str:
 
 
 def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
-    """
-    Send `prompt` to Gemini and return the raw response text.
-    Retries up to 3 times with exponential backoff on rate-limit errors only.
-    """
+    """Send `prompt` to Gemini; retry up to 3 times with backoff on rate-limit errors."""
     client = _get_gemini_client()
+    last_exc: Exception | None = None
 
     for attempt in range(3):
         try:
@@ -128,15 +124,15 @@ def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
             )
             return response.text.strip()
         except Exception as e:
+            last_exc = e
             if attempt < 2 and _is_rate_limit(e):
                 wait = 5 * (2 ** attempt)  # 5s, 10s
                 print(f"[{company_name}] Rate limited — retrying in {wait}s")
                 time.sleep(wait)
             else:
-                raise RuntimeError(f"Gemini extraction failed for {company_name}: {e}")
+                break
 
-    # Unreachable — every branch above returns or raises — but satisfies type checkers
-    raise RuntimeError(f"Gemini extraction failed for {company_name}: all retries exhausted")
+    raise RuntimeError(f"Gemini extraction failed for {company_name}: {last_exc}")
 
 
 def _parse_gemini_response(text: str, company_name: str) -> list[dict]:

@@ -1,5 +1,4 @@
 import os
-import threading
 from datetime import datetime, timezone
 from typing import Generator
 
@@ -12,16 +11,12 @@ TABLE = "seen_jobs"
 BATCH_SIZE = 200
 
 _client: Client | None = None
-_client_lock = threading.Lock()
 
 
 def _get_client() -> Client:
-    """Return a cached Supabase client; thread-safe via double-checked locking."""
     global _client
     if _client is None:
-        with _client_lock:
-            if _client is None:  # re-check after acquiring the lock
-                _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+        _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     return _client
 
 

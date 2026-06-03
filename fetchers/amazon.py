@@ -1,17 +1,14 @@
-import requests
-
-from fetchers import is_relevant
+from fetchers import http_get, is_relevant, offset_paginate
 
 BASE_URL = "https://www.amazon.jobs/en/search.json"
 LIMIT = 100
-MAX_PAGES = 10  # cap at 1000 jobs
+MAX_PAGES = 10
 
 
 def fetch(company: dict) -> list[dict]:
     jobs = []
-    offset = 0
 
-    for _ in range(MAX_PAGES):
+    def fetch_page(offset: int) -> tuple[list, int]:
         params = {
             "base_query": "intern",
             "country[]": "United+States",
@@ -19,20 +16,15 @@ def fetch(company: dict) -> list[dict]:
             "result_limit": LIMIT,
             "offset": offset,
         }
-
         try:
-            resp = requests.get(BASE_URL, params=params, timeout=15)
-            resp.raise_for_status()
+            resp = http_get(BASE_URL, params=params)
         except Exception as e:
             raise RuntimeError(f"Amazon fetch failed: {e}")
-
         data = resp.json()
-        postings = data.get("jobs", [])
-        if not postings:
-            break
+        return data.get("jobs", []), data.get("hits", 0)
 
+    for postings in offset_paginate(fetch_page, LIMIT, MAX_PAGES, company["name"]):
         for job in postings:
-            # Double-check country in case API filter leaks non-US results
             if job.get("country_code", "").upper() not in ("US", "USA", "UNITED STATES"):
                 continue
 
@@ -54,10 +46,5 @@ def fetch(company: dict) -> list[dict]:
                 "url": url,
                 "location": location,
             })
-
-        total = data.get("hits", 0)
-        offset += LIMIT
-        if offset >= total:
-            break
 
     return jobs

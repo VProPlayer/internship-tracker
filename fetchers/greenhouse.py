@@ -1,17 +1,13 @@
-import requests
-
-from fetchers import is_relevant, is_us_location
+from fetchers import http_get, is_relevant, is_us_location
 
 BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 
 
 def fetch(company: dict) -> list[dict]:
-    slug = company["slug"]
-    url = BASE_URL.format(slug=slug)
+    url = BASE_URL.format(slug=company["slug"])
 
     try:
-        resp = requests.get(url, timeout=15)
-        resp.raise_for_status()
+        resp = http_get(url)
     except Exception as e:
         raise RuntimeError(f"Greenhouse fetch failed for {company['name']}: {e}")
 

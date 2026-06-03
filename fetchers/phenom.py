@@ -1,24 +1,18 @@
-import requests
+from fetchers import http_get, is_relevant, offset_paginate
 
-from fetchers import is_relevant
-
-# Phenom People PCSX search API — used by Microsoft, Qualcomm, and others.
-# Each company exposes it at their own subdomain with a domain= param.
 SEARCH_PATH = "/api/pcsx/search"
 PAGE_SIZE = 100
-MAX_PAGES = 10  # cap at 1000 positions
+MAX_PAGES = 10
 
 
 def fetch(company: dict) -> list[dict]:
     api_base = company["api_base"].rstrip("/")
     domain = company["domain"]
     url = api_base + SEARCH_PATH
-
-    jobs = []
-    start = 0
     title_exclude = [t.lower() for t in company.get("title_exclude", [])]
+    jobs = []
 
-    for _ in range(MAX_PAGES):
+    def fetch_page(start: int) -> tuple[list, int]:
         params = {
             "domain": domain,
             "query": "intern",
@@ -26,18 +20,16 @@ def fetch(company: dict) -> list[dict]:
             "start": start,
             "num": PAGE_SIZE,
         }
-
         try:
-            resp = requests.get(url, params=params, timeout=15)
-            resp.raise_for_status()
+            resp = http_get(url, params=params)
         except Exception as e:
             raise RuntimeError(f"Phenom fetch failed for {company['name']}: {e}")
-
         data = resp.json()
         positions = data.get("data", {}).get("positions", [])
-        if not positions:
-            break
+        total = data.get("data", {}).get("count", 0)
+        return positions, total
 
+    for positions in offset_paginate(fetch_page, PAGE_SIZE, MAX_PAGES, company["name"]):
         for pos in positions:
             title = pos.get("name", "")
             if not is_relevant(title):
@@ -65,10 +57,5 @@ def fetch(company: dict) -> list[dict]:
                 "url": job_url,
                 "location": location,
             })
-
-        total = data.get("data", {}).get("count", 0)
-        start += PAGE_SIZE
-        if start >= total:
-            break
 
     return jobs

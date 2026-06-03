@@ -1,8 +1,5 @@
-import requests
+from fetchers import http_get, is_relevant, is_us_location, make_id
 
-from fetchers import is_relevant, is_us_location, make_id
-
-# iCIMS exposes a REST API. We use the /search endpoint with a keyword filter.
 SEARCH_PATH = "/search"
 SEARCH_PARAMS = {
     "ql": 'jobtitle="intern" OR jobtitle="co-op"',
@@ -21,10 +18,16 @@ def fetch(company: dict) -> list[dict]:
     search_url = base_url + SEARCH_PATH
 
     try:
-        resp = requests.get(search_url, headers=HEADERS, params=SEARCH_PARAMS, timeout=15)
-        resp.raise_for_status()
+        resp = http_get(search_url, headers=HEADERS, params=SEARCH_PARAMS)
     except Exception as e:
         raise RuntimeError(f"iCIMS fetch failed for {company['name']}: {e}")
+
+    content_type = resp.headers.get("Content-Type", "")
+    if "json" not in content_type:
+        raise RuntimeError(
+            f"iCIMS returned non-JSON for {company['name']} "
+            f"(Content-Type: {content_type}) — endpoint may require a browser session"
+        )
 
     data = resp.json()
     jobs = []
