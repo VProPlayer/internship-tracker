@@ -26,19 +26,31 @@
     "site": "Jobs"
   },
   {
+    "name": "FIDELITY INVESTMENTS",
+    "type": "workday",
+    "tenant": "fil",
+    "site": "001"
+  },
+  {
+    "name": "NVIDIA",
+    "type": "workday",
+    "tenant": "nvidia",
+    "site": "NVIDIAExternalCareerSite"
+  },
+  {
     "name": "RIVIAN",
     "type": "custom",
-    "url": "https://careers.rivian.com/careers-home/jobs"
+    "url": "https://careers.rivian.com/careers-home/jobs?q=intern"
+  },
+  {
+    "name": "RIVIAN VW TECH",
+    "type": "ashby",
+    "board_handle": "rivianvw.tech"
   },
   {
     "name": "SAS",
     "type": "custom",
     "url": "https://globalcareers-sas.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
-  },
-  {
-    "name": "NVIDIA",
-    "type": "custom",
-    "url": "https://jobs.nvidia.com"
   },
   {
     "name": "GOOGLE",
@@ -48,7 +60,7 @@
   {
     "name": "APPLE",
     "type": "custom",
-    "url": "https://jobs.apple.com"
+    "url": "https://jobs.apple.com/en-us/search?team=internships-STDNT-INTRN&location=united-states-USA"
   },
   {
     "name": "AMD",
@@ -58,12 +70,12 @@
   {
     "name": "TESLA",
     "type": "custom",
-    "url": "https://www.tesla.com/careers"
+    "url": "https://www.tesla.com/careers/search/?query=Internship&site=US"
   },
   {
     "name": "QUALCOMM",
     "type": "custom",
-    "url": "https://careers.qualcomm.com"
+    "url": "https://careers.qualcomm.com/careers?seniority=Intern&domain=qualcomm.com&sort_by=relevance"
   },
   {
     "name": "IBM",
@@ -73,7 +85,7 @@
   {
     "name": "LENOVO",
     "type": "custom",
-    "url": "https://jobs.lenovo.com"
+    "url": "https://jobs.lenovo.com/en_US/careers/SearchJobs/intern?listFilterMode=1&jobRecordsPerPage=10&sort=relevancy"
   },
   {
     "name": "NETAPP",
@@ -81,14 +93,9 @@
     "url": "https://careers.netapp.com"
   },
   {
-    "name": "FIDELITY INVESTMENTS",
-    "type": "custom",
-    "url": "https://jobs.fidelity.com"
-  },
-  {
     "name": "CISCO",
     "type": "custom",
-    "url": "https://careers.cisco.com"
+    "url": "https://careers.cisco.com/global/en/search-results?category=Internships%2C+Apprenticeships%2C+and+Co-Ops"
   },
   {
     "name": "MICROSOFT",
@@ -102,7 +109,7 @@
   },
   {
     "name": "OPENAI",
-    "type": "custom",
-    "url": "https://openai.com/careers/search/"
+    "type": "ashby",
+    "board_handle": "openai"
   }
 ]
