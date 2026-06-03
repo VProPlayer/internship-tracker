@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fetchers import greenhouse, workday, icims, jina, ashby
+from fetchers import greenhouse, workday, icims, jina, ashby, amazon
 import diff
 import notify
 
@@ -16,6 +16,7 @@ FETCHERS = {
     "workday": workday.fetch,
     "icims": icims.fetch,
     "ashby": ashby.fetch,
+    "amazon": amazon.fetch,
     "custom": jina.fetch,
 }
 

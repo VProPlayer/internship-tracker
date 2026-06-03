@@ -103,8 +103,7 @@
   },
   {
     "name": "AMAZON",
-    "type": "custom",
-    "url": "https://amazon.jobs/en/search?base_query=intern+software&loc_query=United+States"
+    "type": "amazon"
   },
   {
     "name": "OPENAI",
