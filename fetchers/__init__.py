@@ -82,7 +82,7 @@ def _build_session() -> requests.Session:
     retry = Retry(
         total=3,
         backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
+        status_forcelist=[401, 429, 500, 502, 503, 504],
         allowed_methods=["GET", "POST"],
     )
     adapter = HTTPAdapter(max_retries=retry)
