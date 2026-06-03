@@ -32,8 +32,8 @@
   },
   {
     "name": "SAS",
-    "type": "icims",
-    "url": "https://globalcareers-sas.icims.com/jobs"
+    "type": "custom",
+    "url": "https://globalcareers-sas.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
   },
   {
     "name": "NVIDIA",
