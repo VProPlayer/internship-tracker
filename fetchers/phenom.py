@@ -16,6 +16,7 @@ def fetch(company: dict) -> list[dict]:
 
     jobs = []
     start = 0
+    title_exclude = [t.lower() for t in company.get("title_exclude", [])]
 
     for _ in range(MAX_PAGES):
         params = {
@@ -40,6 +41,9 @@ def fetch(company: dict) -> list[dict]:
         for pos in positions:
             title = pos.get("name", "")
             if not is_relevant(title):
+                continue
+
+            if title_exclude and any(excl in title.lower() for excl in title_exclude):
                 continue
 
             locations = pos.get("standardizedLocations") or pos.get("locations") or []

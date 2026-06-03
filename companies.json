@@ -101,7 +101,8 @@
     "name": "MICROSOFT",
     "type": "phenom",
     "api_base": "https://apply.careers.microsoft.com",
-    "domain": "microsoft.com"
+    "domain": "microsoft.com",
+    "title_exclude": ["Research Intern"]
   },
   {
     "name": "AMAZON",

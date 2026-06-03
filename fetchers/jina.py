@@ -20,6 +20,7 @@ A posting counts as a match ONLY if ALL of the following are true:
 3. It is in a technical field: software engineering, machine learning, AI, data science,
    data engineering, hardware engineering, IT, systems, or research at the undergrad level.
 4. The location is in the United States, or the role is remote and open to US applicants.
+5. The posting is currently OPEN and accepting applications right now.
 
 Exclude ALL of the following — even if the title contains "intern" or "co-op":
 - Roles with seniority prefixes: Senior, Staff, Principal, Lead, Director, Manager, Head of, VP, Sr.
@@ -28,9 +29,15 @@ Exclude ALL of the following — even if the title contains "intern" or "co-op":
 - Roles requiring a master's or PhD as minimum or preferred qualification
 - Non-technical roles: finance, accounting, HR, marketing, legal, communications, operations
 - Roles located entirely outside the United States
+- Program descriptions, internship category overviews, or "coming soon" placeholders —
+  these are NOT job postings even if they have "internship" in the heading
+- Any posting on a page that says the application period is closed, applications are not
+  being accepted, or positions are unavailable at this time — return [] for the entire page
 
-When in doubt about level, EXCLUDE it.
-When in doubt about location, EXCLUDE it.
+The "url" field must be a direct, specific link to the individual job posting page.
+Do NOT use the careers home page URL, a talent community sign-up link, an anchor (#),
+or any URL that is not a dedicated page for that exact job.
+If no direct job URL is available for a posting, exclude it entirely.
 
 Return a JSON array of objects with keys: title, url, location.
 Return an empty array [] if no matching postings are found.
