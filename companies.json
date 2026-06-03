@@ -73,8 +73,9 @@
   },
   {
     "name": "QUALCOMM",
-    "type": "custom",
-    "url": "https://careers.qualcomm.com/careers?seniority=Intern&domain=qualcomm.com&sort_by=relevance"
+    "type": "phenom",
+    "api_base": "https://careers.qualcomm.com",
+    "domain": "qualcomm.com"
   },
   {
     "name": "IBM",
@@ -98,8 +99,9 @@
   },
   {
     "name": "MICROSOFT",
-    "type": "custom",
-    "url": "https://careers.microsoft.com"
+    "type": "phenom",
+    "api_base": "https://apply.careers.microsoft.com",
+    "domain": "microsoft.com"
   },
   {
     "name": "AMAZON",
