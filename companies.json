@@ -39,7 +39,7 @@
   {
     "name": "RIVIAN",
     "type": "custom",
-    "url": "https://careers.rivian.com/careers-home/jobs?q=intern"
+    "url": "https://us-careers-rivian.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
   },
   {
     "name": "RIVIAN VW TECH",
@@ -64,7 +64,7 @@
   {
     "name": "AMD",
     "type": "custom",
-    "url": "https://careers.amd.com/careers-home/jobs?keywords=intern&location=United+States"
+    "url": "https://internal-amd.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
   },
   {
     "name": "TESLA",
@@ -80,7 +80,7 @@
   {
     "name": "IBM",
     "type": "custom",
-    "url": "https://www.ibm.com/careers/search?q=intern&country=us"
+    "url": "https://www.ibm.com/careers/search?field_keyword_18%5B0%5D=Internship&country=us"
   },
   {
     "name": "LENOVO",
@@ -90,7 +90,7 @@
   {
     "name": "NETAPP",
     "type": "custom",
-    "url": "https://careers.netapp.com"
+    "url": "https://careers.netapp.com/search-jobs?keyword=intern"
   },
   {
     "name": "CISCO",
