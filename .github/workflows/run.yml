@@ -2,7 +2,7 @@ name: Internship Tracker
 
 on:
   schedule:
-    - cron: '0 6 * * 1-5'   # 1:00 AM ET, Mon–Fri
+    - cron: '0 23 * * 1-5'   # 6:00 PM EST, Mon–Fri
   workflow_dispatch:          # manual trigger from GitHub UI
 
 jobs:
