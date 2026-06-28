@@ -1,0 +1,98 @@
+JINA -> DIRECT API MIGRATION LIST
+Generated 2026-06-28. All 10 companies below currently use type:"custom" (Jina scraping).
+Findings come from live endpoint probing, not assumption.
+
+LEGEND
+  [READY]   Platform confirmed + existing fetcher can be reused. Lowest effort.
+  [BUILD]   Direct API exists but needs a small new/extended fetcher.
+  [HARD]    API is gated (CSRF/bot-protection/JS-only). Keep on Jina for now.
+  [BROKEN]  Current Jina URL is stale and must be fixed regardless.
+
+================================================================================
+[READY] CISCO
+  Platform : Phenom (confirmed: page exposes phApp.ddo + csrfToken)
+  Reuse    : fetchers/phenom.py  (already powers QUALCOMM + MICROSOFT)
+  Action   : change companies.json entry to:
+               { "name":"CISCO", "type":"phenom",
+                 "api_base":"https://careers.cisco.com", "domain":"<TENANT>" }
+  TODO     : resolve correct `domain` value. "cisco.com" and "careers.cisco.com"
+             both return {"errorMsg":"Tenant not identified"} from
+             /api/pcsx/search. Pull the real domain from phApp.ddo.siteConfig
+             on the page, then it should work like the other Phenom tenants.
+             May also need to forward the csrfToken header.
+
+================================================================================
+[BUILD] NETAPP
+  Platform : Eightfold AI (confirmed: page markup data-* + EIGHTFOLD signature)
+  API      : Eightfold position-search API (/api/apply/v2/jobs pattern).
+             Note: careers.netapp.com/api/apply/v2/jobs?domain=netapp.com 302s
+             to homepage -- the live tenant host/params differ. Inspect the
+             site's XHR calls to capture the working endpoint + domain param.
+  Action   : add fetchers/eightfold.py (small JSON paginator, mirror phenom.py).
+
+[BUILD] LENOVO
+  Platform : Avature (confirmed: AVATURE signature in page)
+  API      : Avature exposes JSON list endpoints (typically /<portal>/SearchJobs
+             with an XHR JSON variant). Capture the working JSON URL from the
+             site's network calls.
+  Action   : add fetchers/avature.py once endpoint confirmed.
+
+================================================================================
+[HARD] GOOGLE
+  Old v3 API (careers.google.com/api/v3/search) now returns 404 -- removed.
+  Current search is JS-rendered behind a gated API. KEEP ON JINA.
+
+[HARD] APPLE
+  jobs.apple.com/api/role/search -> 301 to pagenotfound. Real API
+  (jobs.apple.com/api/v1/search) requires a CSRF token handshake (GET page for
+  cookie, echo csrf header). Possible but non-trivial. KEEP ON JINA for now;
+  revisit with a CSRF-aware fetcher if Apple volume justifies it.
+
+[HARD] TESLA
+  www.tesla.com/cua-api/apps/careers/state -> 403 Access Denied (Akamai bot
+  protection). Direct calls blocked; Jina's renderer bypasses it. KEEP ON JINA.
+
+[HARD] IBM
+  JS-rendered; www-api.ibm.com search host 301-redirects away. No clean public
+  JSON found. KEEP ON JINA.
+
+[HARD] FIDELITY INVESTMENTS
+  jobs.fidelity.com -- JS-rendered, platform not identified from markup.
+  KEEP ON JINA. (Low posting volume anyway.)
+
+================================================================================
+[BROKEN] RIVIAN   <-- fix regardless of migration
+  Current Jina URL (us-careers-rivian.icims.com) now redirects to
+  careers.rivian.com/jobs -- Rivian MOVED OFF iCIMS. The stale URL is dead.
+  Greenhouse slug "rivian" returns 404, so it's not plain Greenhouse.
+  Action: identify the new platform on careers.rivian.com and repoint.
+
+[BROKEN] SAS
+  iCIMS (globalcareers-sas.icims.com) returns an HTML iframe shell, not JSON,
+  so the existing icims.py fetcher would raise "non-JSON ... requires browser
+  session". Either keep on Jina or build an iCIMS-iframe-aware fetcher.
+
+================================================================================
+RECOMMENDED ORDER (effort vs. payoff)
+  1. CISCO   - reuse phenom.py, just resolve the tenant domain.   (~30 min)
+  2. NETAPP  - new eightfold.py once endpoint captured.           (~1 hr)
+  3. LENOVO  - new avature.py once endpoint captured.             (~1 hr)
+  4. RIVIAN  - repoint stale URL (do this even if staying on Jina).
+  5. Leave GOOGLE / APPLE / TESLA / IBM / FIDELITY / SAS on Jina.
+
+NET RESULT
+  Best realistic case: 3-4 companies leave Jina (Cisco, NetApp, Lenovo, +Rivian).
+  ~6 companies still genuinely require scraping -> Jina (or a paid scraper)
+  remains necessary.
+
+================================================================================
+JINA COST NOTE
+  Free tier   : one-time 10M token grant (no monthly refill) -- lasts ~3 weeks
+                at our volume, then stops.
+  Pay-as-you-go: ~$0.05 per 1M tokens ($50 per 1B). No subscription required.
+  Our usage   : ~0.5M tokens/day (10-30K per scraped page x weekday runs)
+                = ~10M tokens/month = ~$0.50/month.
+  Takeaway    : Jina is effectively cheap. A ~$5 token top-up runs most of a
+                year. Keeping the ~6 gated companies on Jina is cheaper and
+                less fragile than building CSRF/bot-protected scrapers or
+                self-hosting for a clean IP. Migrate only the easy wins above.
