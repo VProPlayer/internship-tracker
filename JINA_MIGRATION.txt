@@ -13,17 +13,21 @@ Rationale
   brittle markup, and it fails loudly (empty/error) rather than silently.
 
 ================================================================================
-[MIGRATE] NETAPP  ->  Eightfold JSON API   (confirmed live 2026-07-08)
+[DONE] NETAPP  ->  Eightfold JSON API   (migrated 2026-07-11; confirmed live 2026-07-08)
   Endpoint : https://netapp.eightfold.ai/api/apply/v2/jobs?domain=netapp.com
   Shape    : JSON. positions[] with name, location, canonicalPositionUrl.
              Paginates 10 per page via &start=N (count ~264 total).
   Durable  : Yes. Backend platform API contract shared across all Eightfold
              tenants; changes are rare and fail LOUDLY (HTTP/schema error).
-  Action   : add fetchers/eightfold.py (small JSON paginator, mirror phenom.py).
-             Apply existing is_relevant() + is_us_location() filters downstream.
-             Then set companies.json NETAPP entry to:
+  Done     : added fetchers/eightfold.py (JSON paginator, mirrors phenom.py),
+             registered the "eightfold" type in main.py, and repointed the
+             companies.json NETAPP entry to:
                { "name":"NETAPP", "type":"eightfold",
                  "host":"netapp.eightfold.ai", "domain":"netapp.com" }
+             is_relevant() + is_us_location() filters applied downstream.
+  Note     : verify count/positions/canonicalPositionUrl field names against the
+             live response on the first scheduled run (proxy blocked live probing
+             from the dev environment).
 
 ================================================================================
 KEEP ON JINA (durability-driven, not just cost)
