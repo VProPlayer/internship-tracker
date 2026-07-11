@@ -84,8 +84,9 @@
   },
   {
     "name": "NETAPP",
-    "type": "custom",
-    "url": "https://careers.netapp.com/search-jobs?keyword=intern"
+    "type": "eightfold",
+    "host": "netapp.eightfold.ai",
+    "domain": "netapp.com"
   },
   {
     "name": "CISCO",

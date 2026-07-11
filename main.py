@@ -5,7 +5,7 @@ import traceback
 
 from dotenv import load_dotenv
 
-from fetchers import greenhouse, workday, icims, jina, ashby, amazon, phenom, amd
+from fetchers import greenhouse, workday, icims, jina, ashby, amazon, phenom, amd, eightfold
 import diff
 import notify
 
@@ -19,6 +19,7 @@ FETCHERS = {
     "amazon": amazon.fetch,
     "phenom": phenom.fetch,
     "amd": amd.fetch,
+    "eightfold": eightfold.fetch,
     "custom": jina.fetch,
 }
 
