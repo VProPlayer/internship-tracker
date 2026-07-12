@@ -14,7 +14,6 @@ def fetch(company: dict) -> list[dict]:
     def fetch_page(start: int) -> tuple[list, int]:
         params = {
             "domain": domain,
-            "query": "intern",
             "start": start,
             "num": PAGE_SIZE,
         }
