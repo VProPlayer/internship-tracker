@@ -3,6 +3,7 @@ import os
 import re
 import time
 
+import requests
 from google import genai
 
 from fetchers import http_get, make_id
@@ -84,18 +85,52 @@ def fetch(company: dict) -> list[dict]:
     return jobs
 
 
-def _fetch_via_jina(url: str) -> str:
-    jina_url = JINA_BASE + url
-    headers = {"Accept": "text/plain"}
+_use_fallback = False
 
-    api_key = os.getenv("JINA_API_KEY", "")
+
+def _jina_headers() -> dict:
+    """Build Reader headers using whichever API key is currently active."""
+    headers = {"Accept": "text/plain"}
+    api_key = os.getenv("JINA_API_KEY_FALLBACK" if _use_fallback else "JINA_API_KEY", "")
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
+
+def _get_with_failover(url: str) -> requests.Response:
+    """Fetch `url` via Jina Reader, switching to the fallback key once the primary is spent.
+
+    Jina answers 402 when a key's token balance is exhausted. That response costs no
+    tokens, so the primary is retried on every run until it 402s — draining it fully
+    before the fallback takes over for the remainder of the process.
+    """
+    global _use_fallback
+
+    jina_url = JINA_BASE + url
     try:
-        resp = http_get(jina_url, headers=headers, timeout=30)
+        return http_get(jina_url, headers=_jina_headers(), timeout=30)
+    except requests.HTTPError as e:
+        exhausted = e.response is not None and e.response.status_code == 402
+        if not exhausted or _use_fallback:
+            raise RuntimeError(f"Jina fetch failed for {url}: {e}")
     except Exception as e:
         raise RuntimeError(f"Jina fetch failed for {url}: {e}")
+
+    if not os.getenv("JINA_API_KEY_FALLBACK", ""):
+        raise RuntimeError(
+            f"Jina primary key exhausted (402) for {url} and JINA_API_KEY_FALLBACK is not set"
+        )
+
+    print("[WARN] Jina primary key exhausted (402) — switching to fallback key")
+    _use_fallback = True
+    try:
+        return http_get(jina_url, headers=_jina_headers(), timeout=30)
+    except Exception as e:
+        raise RuntimeError(f"Jina fetch failed for {url} on fallback key: {e}")
+
+
+def _fetch_via_jina(url: str) -> str:
+    resp = _get_with_failover(url)
 
     content = resp.text
     if len(content) > CONTENT_LIMIT:

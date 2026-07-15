@@ -27,5 +27,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
+          JINA_API_KEY_FALLBACK: ${{ secrets.JINA_API_KEY_FALLBACK }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py
