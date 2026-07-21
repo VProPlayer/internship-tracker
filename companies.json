@@ -199,5 +199,20 @@
     "tenant": "rockwellautomation",
     "host": "wd1",
     "site": "External_Rockwell_Automation"
+  },
+  {
+    "name": "FIREFLY AEROSPACE",
+    "type": "custom",
+    "url": "https://firefly.hrmdirect.com/employment/job-openings.php?search=true"
+  },
+  {
+    "name": "INTUITIVE MACHINES",
+    "type": "custom",
+    "url": "https://workforcenow.adp.com/mascsr/default/mdf/recruitment/recruitment.html?cid=b0e24f83-6e4d-492d-9d6a-bc0fea197d6a&ccId=19000101_000001&lang=en_US"
+  },
+  {
+    "name": "ASTROBOTIC",
+    "type": "custom",
+    "url": "https://astrobotic-technology-inc.primepay-recruit.com/api/rss"
   }
 ]
