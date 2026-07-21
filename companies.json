@@ -230,5 +230,12 @@
     "name": "ASTROSCALE",
     "type": "smartrecruiters",
     "company_id": "AstroscaleUS"
+  },
+  {
+    "name": "SIERRA SPACE",
+    "type": "workday",
+    "tenant": "sierraspace",
+    "host": "wd1",
+    "site": "Sierra_Space_External_Career_Site"
   }
 ]
