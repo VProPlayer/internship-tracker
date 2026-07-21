@@ -6,6 +6,8 @@ from html import escape
 
 import resend
 
+from fetchers import jina
+
 RECIPIENT = os.environ["RECIPIENT_EMAIL"]
 SENDER = "Internship Tracker <onboarding@resend.dev>"
 
@@ -294,6 +296,15 @@ def _build_success_text(jobs: list[dict], today: str, company_count: int) -> str
 
 # ── HTML builders ─────────────────────────────────────────────────────────────
 
+def _jina_usage_html() -> str:
+    """Render a footer line with remaining Jina token balances, or '' if unavailable."""
+    summary = jina.usage_summary()
+    if not summary:
+        return ""
+    parts = [f"{e['label']}: {e['remaining']:,} tokens" for e in summary]
+    return "<br>Jina balance &mdash; " + " &bull; ".join(parts)
+
+
 def _html_shell(content: str) -> str:
     """Wrap content in the full HTML document with Material Expressive dark styles."""
     return f"""<!DOCTYPE html>
@@ -311,7 +322,7 @@ def _html_shell(content: str) -> str:
       {content}
       <div class="footer">
         Sent by <strong>Internship Tracker</strong> &mdash; automated weekday digest<br>
-        Powered by Resend &bull; Deduplicated via Supabase
+        Powered by Resend &bull; Deduplicated via Supabase{_jina_usage_html()}
       </div>
     </div>
   </div>

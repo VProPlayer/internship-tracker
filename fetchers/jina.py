@@ -9,6 +9,7 @@ from google import genai
 from fetchers import http_get, make_id
 
 JINA_BASE = "https://r.jina.ai/"
+JINA_BALANCE_URL = "https://embeddings-dashboard-api.jina.ai/api/v1/api_key/user"
 CONTENT_LIMIT = 40000  # raised from 12k; Gemini flash handles ~1M tokens so 40k chars (~10k tokens) is well within range
 
 EXTRACTION_PROMPT = """
@@ -86,6 +87,39 @@ def fetch(company: dict) -> list[dict]:
 
 
 _use_fallback = False
+
+
+def _remaining_tokens(api_key: str) -> int | None:
+    """Return the remaining Jina token balance for `api_key`, or None if unavailable.
+
+    Queries the (undocumented) dashboard endpoint the 'API Key & Billing' tab uses.
+    Best-effort only: any network, auth, or shape error yields None so callers can
+    silently skip reporting rather than fail.
+    """
+    try:
+        resp = requests.get(JINA_BALANCE_URL, params={"api_key": api_key}, timeout=15)
+        resp.raise_for_status()
+        # `total_balance` is the remaining balance (trial_balance + regular_balance).
+        return resp.json().get("wallet", {}).get("total_balance")
+    except Exception:
+        return None
+
+
+def usage_summary() -> list[dict]:
+    """Return remaining-token balances for each configured Jina key.
+
+    Each entry is {"label": str, "remaining": int}. Keys that are unset or whose
+    balance can't be read are omitted. Never raises.
+    """
+    summary = []
+    for label, env_var in (("primary", "JINA_API_KEY"), ("fallback", "JINA_API_KEY_FALLBACK")):
+        api_key = os.getenv(env_var, "")
+        if not api_key:
+            continue
+        remaining = _remaining_tokens(api_key)
+        if remaining is not None:
+            summary.append({"label": label, "remaining": remaining})
+    return summary
 
 
 def _jina_headers() -> dict:
