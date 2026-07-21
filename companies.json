@@ -108,5 +108,96 @@
     "name": "OPENAI",
     "type": "ashby",
     "board_handle": "openai"
+  },
+  {
+    "name": "ROCKET LAB",
+    "type": "greenhouse",
+    "slug": "rocketlab"
+  },
+  {
+    "name": "RELATIVITY SPACE",
+    "type": "greenhouse",
+    "slug": "relativity"
+  },
+  {
+    "name": "ANDURIL",
+    "type": "greenhouse",
+    "slug": "andurilindustries"
+  },
+  {
+    "name": "ZIPLINE",
+    "type": "greenhouse",
+    "slug": "flyzipline"
+  },
+  {
+    "name": "AURORA INNOVATION",
+    "type": "greenhouse",
+    "slug": "aurorainnovation"
+  },
+  {
+    "name": "FIGURE AI",
+    "type": "greenhouse",
+    "slug": "figureai"
+  },
+  {
+    "name": "NURO",
+    "type": "greenhouse",
+    "slug": "nuro"
+  },
+  {
+    "name": "APPTRONIK",
+    "type": "greenhouse",
+    "slug": "apptronik"
+  },
+  {
+    "name": "AGILITY ROBOTICS",
+    "type": "greenhouse",
+    "slug": "agilityrobotics"
+  },
+  {
+    "name": "KATALYST SPACE",
+    "type": "greenhouse",
+    "slug": "katalyst"
+  },
+  {
+    "name": "SKYDIO",
+    "type": "ashby",
+    "board_handle": "skydio"
+  },
+  {
+    "name": "WAYVE",
+    "type": "ashby",
+    "board_handle": "wayve"
+  },
+  {
+    "name": "1X TECHNOLOGIES",
+    "type": "ashby",
+    "board_handle": "1x"
+  },
+  {
+    "name": "JOBY AVIATION",
+    "type": "custom",
+    "url": "https://careers-jobyaviation.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
+  },
+  {
+    "name": "BOSTON DYNAMICS",
+    "type": "workday",
+    "tenant": "bostondynamics",
+    "host": "wd1",
+    "site": "Boston_Dynamics"
+  },
+  {
+    "name": "MAXAR",
+    "type": "workday",
+    "tenant": "maxar",
+    "host": "wd1",
+    "site": "Vantor"
+  },
+  {
+    "name": "ROCKWELL AUTOMATION",
+    "type": "workday",
+    "tenant": "rockwellautomation",
+    "host": "wd1",
+    "site": "External_Rockwell_Automation"
   }
 ]

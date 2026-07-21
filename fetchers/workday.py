@@ -1,6 +1,6 @@
 from fetchers import http_post, is_relevant, is_us_location, make_id, offset_paginate
 
-BASE_URL = "https://{tenant}.wd5.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
+BASE_URL = "https://{tenant}.{host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -14,7 +14,8 @@ LIMIT = 20
 def fetch(company: dict) -> list[dict]:
     tenant = company["tenant"]
     site = company["site"]
-    url = BASE_URL.format(tenant=tenant, site=site)
+    host = company.get("host", "wd5")  # Workday pod, e.g. wd1/wd5; defaults to wd5
+    url = BASE_URL.format(tenant=tenant, site=site, host=host)
     jobs = []
 
     def fetch_page(offset: int) -> tuple[list, int]:
@@ -39,7 +40,7 @@ def fetch(company: dict) -> list[dict]:
 
             external_path = job.get("externalPath", "")
             job_id = external_path.split("/")[-1]
-            job_url = f"https://wd5.myworkdayjobs.com{external_path}" if external_path else ""
+            job_url = f"https://{host}.myworkdayjobs.com{external_path}" if external_path else ""
             location = job.get("locationsText", "")
 
             if not is_us_location(location):
