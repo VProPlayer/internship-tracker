@@ -214,5 +214,21 @@
     "name": "ASTROBOTIC",
     "type": "custom",
     "url": "https://astrobotic-technology-inc.primepay-recruit.com/api/rss"
+  },
+  {
+    "name": "ZOOX",
+    "type": "lever",
+    "handle": "zoox"
+  },
+  {
+    "name": "BLUE ORIGIN",
+    "type": "workday",
+    "tenant": "blueorigin",
+    "site": "BlueOrigin"
+  },
+  {
+    "name": "ASTROSCALE",
+    "type": "smartrecruiters",
+    "company_id": "AstroscaleUS"
   }
 ]
