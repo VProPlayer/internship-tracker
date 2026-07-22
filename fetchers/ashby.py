@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_location
+from fetchers import http_get, is_relevant, is_us_country, is_us_location
 
 BASE_URL = "https://api.ashbyhq.com/posting-api/job-board/{board_handle}"
 
@@ -27,7 +27,7 @@ def fetch(company: dict) -> list[dict]:
         country = postal.get("addressCountry", "")
 
         if country:
-            is_us = country.lower() in ("united states", "us", "usa")
+            is_us = is_us_country(country)
         else:
             is_us = posting.get("isRemote") is True or is_us_location(location)
 

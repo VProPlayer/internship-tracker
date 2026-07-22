@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_location, make_id, offset_paginate
+from fetchers import http_get, is_relevant, is_us_country, is_us_location, make_id, offset_paginate
 
 BASE_URL = "https://api.smartrecruiters.com/v1/companies/{company_id}/postings"
 JOB_URL = "https://jobs.smartrecruiters.com/{company_id}/{posting_id}"
@@ -33,7 +33,7 @@ def fetch(company: dict) -> list[dict]:
 
             country = loc.get("country", "")
             if country:
-                is_us = country.lower() in ("us", "usa")
+                is_us = is_us_country(country)
             else:
                 is_us = is_us_location(location)
 

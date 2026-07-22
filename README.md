@@ -34,11 +34,13 @@ Want a company added to the list? [**Request one here.**](https://forms.gle/coZd
 | Structured APIs | Greenhouse, Workday CXS, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, iCIMS, Amazon |
 | Unstructured sites | Jina Reader (page → plain text) + Gemini Flash (text → structured JSON) |
 | Deduplication | Supabase (Postgres) |
-| Email | Python `smtplib` (stdlib) over SMTP-SSL, Material-Expressive dark HTML template |
+| Email | Python `smtplib` (stdlib) over SMTP-SSL, Material-Expressive dark HTML template, 3x retry |
 | Distribution | Google Group fan-out — one message per run, Google handles delivery |
 | Runtime | Python 3.12, no web framework |
 
-The Gemini model in use is `gemini-3.1-flash-lite`. All fetchers share HTTP helpers in `fetchers/__init__.py` with automatic retry/backoff and offset pagination, plus the `is_relevant` / `is_us_location` filters.
+The Gemini model in use is `gemini-3.5-flash-lite`, set by the `GEMINI_MODEL` constant in `fetchers/jina.py`. All fetchers share HTTP helpers in `fetchers/__init__.py` with automatic retry/backoff and offset pagination, plus the `is_relevant` / `is_us_country` / `is_us_location` filters.
+
+Email dispatch retries 3 times with 5s/10s backoff on transient SMTP failures. Authentication errors and recipient rejections are raised immediately rather than retried — neither self-heals, and repeating a failed login risks a Google account lockout.
 
 Jina supports a second key: if the primary returns HTTP 402 (token balance exhausted), the run fails over to `JINA_API_KEY_FALLBACK` for the remainder of the run. Remaining balances for both keys are printed in the email footer.
 
@@ -315,7 +317,7 @@ internship-tracker/
 ├── requirements.txt
 ├── fetchers/
 │   ├── __init__.py       # Shared helpers: http_get/http_post (retry), offset_paginate,
-│   │                     #   KEYWORD_RE, is_relevant, is_us_location, make_id
+│   │                     #   KEYWORD_RE, is_relevant, is_us_country, is_us_location, make_id
 │   ├── greenhouse.py     # Greenhouse JSON API
 │   ├── workday.py        # Workday CXS API
 │   ├── ashby.py          # Ashby job board API

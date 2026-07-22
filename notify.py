@@ -2,6 +2,7 @@ import argparse
 import os
 import smtplib
 import ssl
+import time
 from collections import defaultdict
 from datetime import date
 from email.message import EmailMessage
@@ -24,6 +25,10 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+
+# Matches the 3-attempt retry the fetchers get via http_get — a transient SMTP
+# hiccup would otherwise discard the whole digest until tomorrow's run.
+SMTP_MAX_ATTEMPTS = 3
 
 SENDER = formataddr(("Internship Tracker", SMTP_USER))
 
@@ -458,11 +463,27 @@ def _send(subject: str, text_body: str, html_body: str, to: str) -> None:
     msg.set_content(text_body)
     msg.add_alternative(html_body, subtype="html")
 
-    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ssl.create_default_context()) as server:
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.send_message(msg)
+    last_exc: Exception | None = None
 
-    print(f"Email sent to {to} — {subject}")
+    for attempt in range(SMTP_MAX_ATTEMPTS):
+        try:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ssl.create_default_context()) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(msg)
+            print(f"Email sent to {to} — {subject}")
+            return
+        except (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused):
+            # Bad credentials, or the group rejected the post. Neither self-heals,
+            # and retrying a rejected login risks tripping Google's lockout.
+            raise
+        except (smtplib.SMTPException, OSError) as e:
+            last_exc = e
+            if attempt < SMTP_MAX_ATTEMPTS - 1:
+                wait = 5 * (2 ** attempt)  # 5s, 10s
+                print(f"SMTP send failed ({e}) — retrying in {wait}s")
+                time.sleep(wait)
+
+    raise RuntimeError(f"Email to {to} failed after {SMTP_MAX_ATTEMPTS} attempts: {last_exc}")
 
 
 # ── CLI test harness ──────────────────────────────────────────────────────────

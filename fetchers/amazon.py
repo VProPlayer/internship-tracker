@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, offset_paginate
+from fetchers import http_get, is_relevant, is_us_country, make_id, offset_paginate
 
 BASE_URL = "https://www.amazon.jobs/en/search.json"
 LIMIT = 100
@@ -25,7 +25,7 @@ def fetch(company: dict) -> list[dict]:
 
     for postings in offset_paginate(fetch_page, LIMIT, MAX_PAGES, company["name"]):
         for job in postings:
-            if job.get("country_code", "").upper() not in ("US", "USA", "UNITED STATES"):
+            if not is_us_country(job.get("country_code", "")):
                 continue
 
             title = job.get("title", "")
@@ -40,7 +40,7 @@ def fetch(company: dict) -> list[dict]:
             location = f"{city}, {state}".strip(", ") if (city or state) else job.get("location", "")
 
             jobs.append({
-                "id": str(job.get("id") or job.get("id_icims", "")),
+                "id": str(job.get("id") or job.get("id_icims") or make_id(company["name"], title, url)),
                 "company": company["name"],
                 "title": title,
                 "url": url,

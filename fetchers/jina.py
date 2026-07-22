@@ -8,6 +8,10 @@ from google import genai
 
 from fetchers import http_get, make_id
 
+# Gemini 3.5 Flash-Lite (GA) — low-latency, low-cost, built for high-volume
+# extraction work like this. Bump this constant to change models.
+GEMINI_MODEL = "gemini-3.5-flash-lite"
+
 JINA_BASE = "https://r.jina.ai/"
 JINA_BALANCE_URL = "https://embeddings-dashboard-api.jina.ai/api/v1/api_key/user"
 CONTENT_LIMIT = 40000  # raised from 12k; Gemini flash handles ~1M tokens so 40k chars (~10k tokens) is well within range
@@ -188,7 +192,7 @@ def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-3.1-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
             )
             return response.text.strip()

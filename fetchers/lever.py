@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_location, make_id
+from fetchers import http_get, is_relevant, is_us_country, is_us_location, make_id
 
 BASE_URL = "https://api.lever.co/v0/postings/{handle}?mode=json"
 
@@ -24,7 +24,7 @@ def fetch(company: dict) -> list[dict]:
         # Prefer the structured country code; fall back to the location string
         country = posting.get("country", "")
         if country:
-            is_us = country.upper() in ("US", "USA")
+            is_us = is_us_country(country)
         else:
             is_us = is_us_location(location)
 

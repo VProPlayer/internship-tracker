@@ -29,6 +29,22 @@ _REMOTE_STANDALONE_RE = re.compile(
 _STATE_RE = re.compile(r',\s*([A-Z]{2})(?:\s+\d{5})?(?:\s*$|,)', re.IGNORECASE)
 
 
+# Every spelling of "United States" seen across the ATS platforms we fetch from:
+# two-letter codes (Lever), three-letter codes (Amazon), and full names (Ashby).
+# Compared after stripping case and periods, so "U.S." and "us" both match.
+_US_COUNTRY_VALUES = {"us", "usa", "united states", "united states of america"}
+
+
+def is_us_country(country: str) -> bool:
+    """Return True if an ATS `country` field denotes the United States.
+
+    Each fetcher previously carried its own tuple of accepted spellings, and they
+    had drifted — some omitted "United States", so a platform that spells the
+    country out would have had every US posting silently dropped.
+    """
+    return country.strip().lower().replace(".", "") in _US_COUNTRY_VALUES
+
+
 def is_us_location(location: str) -> bool:
     """Return True if location is US-based, explicitly remote/hybrid, or unknown."""
     if not location:
