@@ -25,7 +25,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
           JINA_API_KEY_FALLBACK: ${{ secrets.JINA_API_KEY_FALLBACK }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}

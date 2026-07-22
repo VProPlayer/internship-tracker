@@ -1,18 +1,38 @@
 import argparse
 import os
+import smtplib
+import ssl
 from collections import defaultdict
 from datetime import date
+from email.message import EmailMessage
+from email.utils import formataddr
 from html import escape
 
-import resend
+from dotenv import load_dotenv
 
 from fetchers import jina
 
-RECIPIENT = os.environ["RECIPIENT_EMAIL"]
-SENDER = "Internship Tracker <onboarding@resend.dev>"
+# Idempotent — main.py also calls this. Needed here so `python notify.py --test`
+# works standalone, since the constants below read the environment at import.
+load_dotenv()
 
-# Set once at import time — load_dotenv() is called before this module is imported
-resend.api_key = os.getenv("RESEND_API_KEY", "")
+# The digest is addressed to a Google Group, which fans it out to every member
+# and handles subscriptions, unsubscribes and archiving. One message per run.
+RECIPIENT = os.environ["RECIPIENT_EMAIL"]
+
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+
+SENDER = formataddr(("Internship Tracker", SMTP_USER))
+
+# Failure alerts are operational noise for subscribers — they go to the
+# maintainer alone, never to the group.
+OWNER_EMAIL = os.getenv("OWNER_EMAIL") or SMTP_USER
+
+# Google Form for requesting a company be added to the tracker.
+REQUEST_FORM_URL = "https://forms.gle/coZd4rP7JtiTjFFW6"
 
 # ── Material Expressive Dark — design tokens ──────────────────────────────────
 # Surface hierarchy: bg (#0F1117) → surface (#1A1D27) → surface-variant (#22263A)
@@ -251,7 +271,7 @@ def send_success(new_jobs: list[dict]) -> None:
     text_body = _build_success_text(new_jobs, today, company_count)
     html_body = _build_success_html(new_jobs, today, company_count)
 
-    _send(subject, text_body, html_body)
+    _send(subject, text_body, html_body, RECIPIENT)
 
 
 def send_failure(error_message: str) -> None:
@@ -269,7 +289,7 @@ def send_failure(error_message: str) -> None:
     )
     html_body = _build_failure_html(error_message, today, actions_url)
 
-    _send(subject, text_body, html_body)
+    _send(subject, text_body, html_body, OWNER_EMAIL)
 
 
 # ── Plain-text builders ───────────────────────────────────────────────────────
@@ -291,6 +311,8 @@ def _build_success_text(jobs: list[dict], today: str, company_count: int) -> str
             lines.append(f"  - {job['title']}{location} | Apply: {job['url']}")
         lines.append("")
 
+    lines.append(f"Want a company added? Request one: {REQUEST_FORM_URL}")
+
     return "\n".join(lines).strip()
 
 
@@ -303,6 +325,14 @@ def _jina_usage_html() -> str:
         return ""
     parts = [f"{e['label']}: {e['remaining']:,} tokens" for e in summary]
     return "<br>Jina balance &mdash; " + " &bull; ".join(parts)
+
+
+def _request_company_html() -> str:
+    """Render the footer link to the request-a-company form."""
+    return (
+        f'<br><a href="{escape(REQUEST_FORM_URL)}" '
+        f'target="_blank" rel="noopener noreferrer">Request a company</a>'
+    )
 
 
 def _html_shell(content: str) -> str:
@@ -322,7 +352,7 @@ def _html_shell(content: str) -> str:
       {content}
       <div class="footer">
         Sent by <strong>Internship Tracker</strong> &mdash; automated weekday digest<br>
-        Powered by Resend &bull; Deduplicated via Supabase{_jina_usage_html()}
+        Deduplicated via Supabase{_jina_usage_html()}{_request_company_html()}
       </div>
     </div>
   </div>
@@ -413,28 +443,31 @@ def _build_failure_html(error_message: str, today: str, actions_url: str) -> str
     return _html_shell(content)
 
 
-# ── Resend dispatch ───────────────────────────────────────────────────────────
+# ── SMTP dispatch ─────────────────────────────────────────────────────────────
 
-def _send(subject: str, text_body: str, html_body: str) -> None:
-    params: resend.Emails.SendParams = {
-        "from": SENDER,
-        "to": [RECIPIENT],
-        "subject": subject,
-        "text": text_body,
-        "html": html_body,
-    }
+def _send(subject: str, text_body: str, html_body: str, to: str) -> None:
+    if not to:
+        raise RuntimeError("No recipient configured — set RECIPIENT_EMAIL (and OWNER_EMAIL)")
+    if not (SMTP_USER and SMTP_PASSWORD):
+        raise RuntimeError("SMTP_USER and SMTP_PASSWORD must be set to send mail")
 
-    response = resend.Emails.send(params)
-    print(f"Email sent: {response['id']} — {subject}")
+    msg = EmailMessage()
+    msg["From"] = SENDER
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype="html")
+
+    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ssl.create_default_context()) as server:
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+
+    print(f"Email sent to {to} — {subject}")
 
 
 # ── CLI test harness ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
-    resend.api_key = os.environ["RESEND_API_KEY"]
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--failure", metavar="ERROR", help="Send a failure alert with this message")
     parser.add_argument("--test", action="store_true", help="Send a test success email with mock data")
