@@ -6,10 +6,12 @@ Monitors 45 company careers pages every weekday evening and emails you a digest 
 
 ## Subscribe
 
-Get the digest in your inbox every weekday evening. Two ways to join, both free:
+Get the digest in your inbox every weekday evening. Two ways to request access, both free:
 
-- **[Join via Google Groups](https://groups.google.com/g/internship-tracker)** — click *Join group*. Requires a Google account.
-- **Join by email** — send a blank email to **internship-tracker+subscribe@googlegroups.com** and reply to the confirmation. No Google account needed.
+- **[Ask to join via Google Groups](https://groups.google.com/g/internship-tracker)** — click *Ask to join group*. Requires a Google account.
+- **Ask to join by email** — send a blank email to **internship-tracker+subscribe@googlegroups.com** and reply to the confirmation. No Google account needed.
+
+Requests are reviewed by the group owner, so there may be a short wait before the first digest arrives.
 
 To leave at any time, email **internship-tracker+unsubscribe@googlegroups.com** or use the group page. The list is one-way: only the tracker posts, so you'll never receive mail from other subscribers.
 
