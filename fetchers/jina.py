@@ -90,7 +90,28 @@ def fetch(company: dict) -> list[dict]:
     return jobs
 
 
-_use_fallback = False
+# Jina Reader auth tiers, tried cheapest-first. Tier 0 is the keyless free tier
+# (no Authorization header); we only climb to a paid key when the current tier
+# stops working. Escalation is one-way and process-wide: once a tier fails we
+# stay on the next one for every remaining company, rather than re-probing a
+# rate-limited or exhausted tier on each fetch.
+#
+#   free  → rate-limited / repeatedly failing  → key 1
+#   key 1 → exhausted (HTTP 402)               → key 2
+#   key 2 → exhausted (HTTP 402)               → hard fail
+#
+# A tier whose env var is unset is skipped (e.g. JINA_API_KEY empty → free falls
+# straight through to key 2).
+_TIERS = (
+    {"label": "free", "env": None},
+    {"label": "key 1", "env": "JINA_API_KEY"},
+    {"label": "key 2", "env": "JINA_API_KEY_FALLBACK"},
+)
+
+_tier_index = 0
+# label -> api_key, populated only for key tiers we actually fetched with, so the
+# email footer can report balances for exactly the keys this run consumed.
+_used_keys: dict[str, str] = {}
 
 
 def _remaining_tokens(api_key: str) -> int | None:
@@ -98,26 +119,30 @@ def _remaining_tokens(api_key: str) -> int | None:
 
     Queries the (undocumented) dashboard endpoint the 'API Key & Billing' tab uses.
     Best-effort only: any network, auth, or shape error yields None so callers can
-    silently skip reporting rather than fail.
+    skip reporting rather than fail, but the reason is logged so a broken read is
+    diagnosable instead of silently vanishing.
     """
     try:
         resp = requests.get(JINA_BALANCE_URL, params={"api_key": api_key}, timeout=15)
         resp.raise_for_status()
         # `total_balance` is the remaining balance (trial_balance + regular_balance).
         return resp.json().get("wallet", {}).get("total_balance")
-    except Exception:
+    except Exception as e:
+        print(f"[WARN] Jina balance lookup failed: {e}")
         return None
 
 
 def usage_summary() -> list[dict]:
-    """Return remaining-token balances for each configured Jina key.
+    """Return remaining-token balances for the keys this run actually used.
 
-    Each entry is {"label": str, "remaining": int}. Keys that are unset or whose
-    balance can't be read are omitted. Never raises.
+    Each entry is {"label": str, "remaining": int}. A key is reported only if it
+    was used to fetch at least one page (so a free-tier-only run reports nothing)
+    and its balance can currently be read. Never raises.
     """
     summary = []
-    for label, env_var in (("primary", "JINA_API_KEY"), ("fallback", "JINA_API_KEY_FALLBACK")):
-        api_key = os.getenv(env_var, "")
+    for tier in _TIERS:
+        label = tier["label"]
+        api_key = _used_keys.get(label)
         if not api_key:
             continue
         remaining = _remaining_tokens(api_key)
@@ -126,45 +151,72 @@ def usage_summary() -> list[dict]:
     return summary
 
 
-def _jina_headers() -> dict:
-    """Build Reader headers using whichever API key is currently active."""
+def _tier_headers(api_key: str) -> dict:
+    """Build Reader headers, authenticating only when a key is present."""
     headers = {"Accept": "text/plain"}
-    api_key = os.getenv("JINA_API_KEY_FALLBACK" if _use_fallback else "JINA_API_KEY", "")
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     return headers
 
 
-def _get_with_failover(url: str) -> requests.Response:
-    """Fetch `url` via Jina Reader, switching to the fallback key once the primary is spent.
+def _is_exhausted(exc: Exception) -> bool:
+    """True when `exc` is Jina's 402 (token balance spent) response."""
+    return (
+        isinstance(exc, requests.HTTPError)
+        and exc.response is not None
+        and exc.response.status_code == 402
+    )
 
-    Jina answers 402 when a key's token balance is exhausted. That response costs no
-    tokens, so the primary is retried on every run until it 402s — draining it fully
-    before the fallback takes over for the remainder of the process.
+
+def _get_with_failover(url: str) -> requests.Response:
+    """Fetch `url` via Jina Reader, climbing auth tiers as each stops working.
+
+    The free tier is best-effort: any failure after ``http_get``'s built-in retries
+    (rate limits, 5xx, network errors) escalates to the next configured key. A paid
+    key is only abandoned when it 402s (balance exhausted); any other error on a key
+    is a genuine fetch failure and is raised. Escalation persists across companies
+    via ``_tier_index`` so we never re-probe a spent tier.
     """
-    global _use_fallback
+    global _tier_index
 
     jina_url = JINA_BASE + url
-    try:
-        return http_get(jina_url, headers=_jina_headers(), timeout=30)
-    except requests.HTTPError as e:
-        exhausted = e.response is not None and e.response.status_code == 402
-        if not exhausted or _use_fallback:
-            raise RuntimeError(f"Jina fetch failed for {url}: {e}")
-    except Exception as e:
-        raise RuntimeError(f"Jina fetch failed for {url}: {e}")
+    last_exc: Exception | None = None
 
-    if not os.getenv("JINA_API_KEY_FALLBACK", ""):
-        raise RuntimeError(
-            f"Jina primary key exhausted (402) for {url} and JINA_API_KEY_FALLBACK is not set"
-        )
+    while _tier_index < len(_TIERS):
+        tier = _TIERS[_tier_index]
+        api_key = os.getenv(tier["env"], "") if tier["env"] else ""
 
-    print("[WARN] Jina primary key exhausted (402) — switching to fallback key")
-    _use_fallback = True
-    try:
-        return http_get(jina_url, headers=_jina_headers(), timeout=30)
-    except Exception as e:
-        raise RuntimeError(f"Jina fetch failed for {url} on fallback key: {e}")
+        # A key tier with no key configured can't be used — skip to the next.
+        if tier["env"] and not api_key:
+            _tier_index += 1
+            continue
+
+        try:
+            resp = http_get(jina_url, headers=_tier_headers(api_key), timeout=30)
+            if api_key:
+                _used_keys[tier["label"]] = api_key
+            return resp
+        except Exception as e:
+            last_exc = e
+            on_free_tier = tier["env"] is None
+
+            if on_free_tier:
+                # Free tier gave out — record nothing (no key spent) and climb.
+                print(f"[WARN] Jina free tier failed for {url} ({e}) — escalating to a key")
+                _tier_index += 1
+                continue
+
+            # We reached this tier, so its key was engaged for the run.
+            _used_keys[tier["label"]] = api_key
+            if _is_exhausted(e):
+                print(f"[WARN] Jina {tier['label']} exhausted (402) — escalating")
+                _tier_index += 1
+                continue
+
+            # Non-exhaustion error on a paid key: a real failure, not a reason to burn the next key.
+            raise RuntimeError(f"Jina fetch failed for {url} on {tier['label']}: {e}")
+
+    raise RuntimeError(f"Jina fetch failed for {url}: all auth tiers exhausted ({last_exc})")
 
 
 def _fetch_via_jina(url: str) -> str:
