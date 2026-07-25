@@ -44,7 +44,7 @@ The Gemini model in use is `gemini-3.5-flash-lite`, set by the `GEMINI_MODEL` co
 
 Email dispatch retries 3 times with 5s/10s backoff on transient SMTP failures. Authentication errors and recipient rejections are raised immediately rather than retried — neither self-heals, and repeating a failed login risks a Google account lockout.
 
-Jina supports a second key: if the primary returns HTTP 402 (token balance exhausted), the run fails over to `JINA_API_KEY_FALLBACK` for the remainder of the run. Remaining balances for both keys are printed in the email footer.
+Jina fetching climbs three auth tiers, cheapest first, escalating only when the current one stops working: the keyless **free tier** is used until it rate-limits or repeatedly fails, then **key 1** (`JINA_API_KEY`) until its token balance is exhausted (HTTP 402), then **key 2** (`JINA_API_KEY_FALLBACK`) until it too is exhausted, after which the run hard-fails. A tier whose key is unset is skipped, so with no `JINA_API_KEY` the free tier falls straight through to `JINA_API_KEY_FALLBACK`. Escalation is one-way and lasts the rest of the run. The email footer reports remaining balances only for the keys that run actually used — a free-tier-only run shows no balance line.
 
 ---
 
@@ -84,8 +84,8 @@ You need the following before proceeding:
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) |
 | `SMTP_USER` | The Gmail address the digest is sent from |
 | `SMTP_PASSWORD` | A Google [App Password](https://myaccount.google.com/apppasswords) for that account (requires 2-Step Verification; this is **not** your account password) |
-| `JINA_API_KEY` | [Jina AI](https://jina.ai/) → API Keys (optional, but recommended — unauthenticated requests are rate-limited) |
-| `JINA_API_KEY_FALLBACK` | A second Jina key from a separate account (optional — used automatically when the primary key runs out of tokens) |
+| `JINA_API_KEY` | [Jina AI](https://jina.ai/) → API Keys (key 1 — optional, but recommended; the keyless free tier is rate-limited) |
+| `JINA_API_KEY_FALLBACK` | A second Jina key from a separate account (key 2 — optional; used automatically once key 1 runs out of tokens) |
 
 ### 4. Add Secrets to GitHub Actions
 
@@ -101,8 +101,8 @@ In your forked repository, go to **Settings → Secrets and variables → Action
 | `SMTP_USER` | The sending Gmail address |
 | `SMTP_PASSWORD` | The Google App Password for that address |
 | `OWNER_EMAIL` | Your own address — failure alerts go here, never to the group |
-| `JINA_API_KEY` | Your Jina AI key (optional) |
-| `JINA_API_KEY_FALLBACK` | A backup Jina key used when the primary is exhausted (optional) |
+| `JINA_API_KEY` | Your Jina AI key — key 1 (optional) |
+| `JINA_API_KEY_FALLBACK` | A backup Jina key — key 2, used when key 1 is exhausted (optional) |
 | `RECIPIENT_EMAIL` | Your Google Group address, e.g. `internship-digest@googlegroups.com` |
 
 The workflow at `.github/workflows/run.yml` injects these as environment variables at runtime. Your local `.env` file is ignored by GitHub Actions entirely — it only exists for local runs.
@@ -330,7 +330,7 @@ internship-tracker/
 │   ├── amazon.py         # Amazon jobs search API
 │   ├── amd.py            # AMD Jibe search API (registered, currently unused)
 │   ├── icims.py          # iCIMS REST API
-│   └── jina.py           # Jina Reader + Gemini Flash fallback (with key failover)
+│   └── jina.py           # Jina Reader + Gemini Flash extraction (free → key 1 → key 2 tiers)
 └── .github/
     └── workflows/
         └── run.yml       # GitHub Actions cron definition
