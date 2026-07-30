@@ -8,6 +8,8 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # allow committing the updated seen_jobs.json ledger
 
     steps:
       - uses: actions/checkout@v4
@@ -22,8 +24,6 @@ jobs:
 
       - name: Run tracker
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
@@ -32,3 +32,16 @@ jobs:
           JINA_API_KEY_FALLBACK: ${{ secrets.JINA_API_KEY_FALLBACK }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py
+
+      - name: Persist seen-jobs ledger
+        if: always()   # commit dedup state even when a company fetch errored
+        run: |
+          if [[ -n "$(git status --porcelain seen_jobs.json)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add seen_jobs.json
+            git commit -m "chore(ledger): update seen_jobs [skip ci]"
+            git push
+          else
+            echo "No ledger changes to commit."
+          fi

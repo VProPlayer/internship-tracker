@@ -39,27 +39,34 @@ OWNER_EMAIL = os.getenv("OWNER_EMAIL") or SMTP_USER
 # Google Form for requesting a company be added to the tracker.
 REQUEST_FORM_URL = "https://forms.gle/coZd4rP7JtiTjFFW6"
 
-# ── Material Expressive Dark — design tokens ──────────────────────────────────
-# Surface hierarchy: bg (#0F1117) → surface (#1A1D27) → surface-variant (#22263A)
-# Primary tonal:    #A8C7FA (Google Blue tonal, dark-mode safe, AA-contrast)
-# On-surface:       #E2E2EC (high-emphasis text)
-# On-surface-var:   #C4C6D0 (medium-emphasis text)
-# Outline:          #44475A (subtle borders)
+# ── Material 3 Expressive — light/dark design tokens ──────────────────────────
+# The template ships light by default and overrides to dark under
+# `prefers-color-scheme: dark`, which Apple Mail and modern Gmail honour. Colours
+# follow the Material 3 baseline blue scheme so both modes stay AA-contrast.
+#
+#                     LIGHT                    DARK
+#   page bg          #F4F5FB                  #111318
+#   surface (card)   #FFFFFF                  #1D2024
+#   primary          #415F91  on #FFFFFF      #A8C7FA  on #0A305F
+#   primary-container#D9E2FF  on #0E1B37      #284777  on #D9E2FF
+#   on-surface       #191C20                  #E2E2E9
+#   on-surface-var   #44474E                  #C4C6CF
+#   outline-variant  #C4C6D0                  #33363C
 
 _CSS = """
-  @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Display:wght@600;700&display=swap');
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background-color: #0F1117;
+    background-color: #F4F5FB;
     font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
-    color: #E2E2EC;
+    color: #191C20;
     -webkit-font-smoothing: antialiased;
   }
 
   .wrapper {
-    background-color: #0F1117;
+    background-color: #F4F5FB;
     padding: 32px 16px 48px;
   }
 
@@ -68,87 +75,88 @@ _CSS = """
     margin: 0 auto;
   }
 
-  /* ── Header ── */
+  /* ── Header (expressive tonal hero) ── */
   .header {
-    text-align: left;
-    padding: 0 0 28px 0;
-    border-bottom: 1px solid #44475A;
-    margin-bottom: 28px;
+    background-color: #D9E2FF;
+    border-radius: 28px;
+    padding: 28px 28px 30px;
+    margin-bottom: 24px;
   }
 
   .header-eyebrow {
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 1.8px;
     text-transform: uppercase;
-    color: #A8C7FA;
-    margin-bottom: 8px;
+    color: #2E4B7A;
+    margin-bottom: 10px;
   }
 
   .header-title {
     font-family: 'Google Sans Display', 'Google Sans', Arial, sans-serif;
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
-    color: #E2E2EC;
-    line-height: 1.2;
+    color: #0E1B37;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
   }
 
   .header-subtitle {
     margin-top: 8px;
     font-size: 13px;
-    color: #C4C6D0;
+    color: #3A4B68;
     line-height: 1.5;
   }
 
   /* ── Summary pill ── */
   .summary-pill {
     display: inline-block;
-    background-color: #1E3A5F;
-    border: 1px solid #2D5F9E;
+    background-color: #415F91;
     border-radius: 100px;
-    padding: 6px 16px;
+    padding: 8px 18px;
     font-size: 12px;
-    font-weight: 500;
-    color: #A8C7FA;
-    margin-bottom: 28px;
+    font-weight: 600;
+    color: #FFFFFF;
+    margin-bottom: 26px;
   }
 
   /* ── Company section ── */
   .company-section {
-    margin-bottom: 20px;
+    margin-bottom: 22px;
   }
 
   .company-header {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
+    padding-left: 4px;
   }
 
   .company-name {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1.6px;
     text-transform: uppercase;
-    color: #A8C7FA;
+    color: #415F91;
   }
 
   .company-count {
     margin-left: 10px;
-    background-color: #1E3A5F;
+    background-color: #D9E2FF;
     border-radius: 100px;
-    padding: 2px 9px;
+    padding: 2px 10px;
     font-size: 10px;
-    font-weight: 500;
-    color: #A8C7FA;
+    font-weight: 600;
+    color: #0E1B37;
   }
 
   /* ── Job card ── */
   .job-card {
-    background-color: #1A1D27;
-    border: 1px solid #2C2F3F;
-    border-radius: 16px;
-    padding: 16px 18px;
-    margin-bottom: 8px;
+    background-color: #FFFFFF;
+    border: 1px solid #E1E2EC;
+    border-radius: 24px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
   }
 
   .job-card:last-child {
@@ -156,24 +164,24 @@ _CSS = """
   }
 
   .job-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
-    color: #E2E2EC;
+    color: #191C20;
     line-height: 1.4;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .job-meta {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
   }
 
   .job-location {
     font-size: 12px;
-    color: #C4C6D0;
+    color: #44474E;
   }
 
   .job-location::before {
@@ -182,38 +190,37 @@ _CSS = """
 
   .apply-btn {
     display: inline-block;
-    background-color: #A8C7FA;
-    color: #001D36 !important;
+    background-color: #415F91;
+    color: #FFFFFF !important;
     text-decoration: none;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.3px;
     border-radius: 100px;
-    padding: 7px 18px;
+    padding: 9px 20px;
     line-height: 1;
   }
 
   /* ── Footer ── */
   .footer {
-    border-top: 1px solid #44475A;
+    border-top: 1px solid #C4C6D0;
     margin-top: 36px;
     padding-top: 20px;
     text-align: center;
     font-size: 11px;
-    color: #6B6F80;
+    color: #74777F;
     line-height: 1.7;
   }
 
   .footer a {
-    color: #7CA8E0;
+    color: #415F91;
     text-decoration: none;
   }
 
   /* ── Failure card ── */
   .failure-card {
-    background-color: #2A1A1A;
-    border: 1px solid #5C2E2E;
-    border-radius: 16px;
+    background-color: #FFDAD6;
+    border-radius: 24px;
     padding: 24px;
     margin-bottom: 24px;
   }
@@ -223,32 +230,32 @@ _CSS = """
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #FFB4AB;
+    color: #8C1D18;
     margin-bottom: 8px;
   }
 
   .failure-title {
     font-size: 18px;
     font-weight: 700;
-    color: #FFB4AB;
+    color: #410002;
     margin-bottom: 12px;
   }
 
   .failure-body {
     font-size: 13px;
-    color: #C4C6D0;
+    color: #5C3A38;
     line-height: 1.7;
   }
 
   .failure-pre {
-    background-color: #1A0E0E;
-    border: 1px solid #5C2E2E;
-    border-radius: 10px;
+    background-color: #FFF0EE;
+    border: 1px solid #F3B7B1;
+    border-radius: 12px;
     padding: 14px;
     margin-top: 14px;
     font-family: 'Courier New', monospace;
     font-size: 11px;
-    color: #FFCDD2;
+    color: #7A1912;
     white-space: pre-wrap;
     word-break: break-all;
     line-height: 1.6;
@@ -257,13 +264,44 @@ _CSS = """
   .actions-btn {
     display: inline-block;
     margin-top: 18px;
-    background-color: #FFB4AB;
-    color: #690005 !important;
+    background-color: #BA1A1A;
+    color: #FFFFFF !important;
     text-decoration: none;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     border-radius: 100px;
-    padding: 8px 20px;
+    padding: 10px 22px;
+  }
+
+  /* ── Dark mode ── */
+  @media (prefers-color-scheme: dark) {
+    body, .wrapper { background-color: #111318 !important; }
+    body { color: #E2E2E9 !important; }
+
+    .header { background-color: #284777 !important; }
+    .header-eyebrow { color: #AEC6FF !important; }
+    .header-title { color: #F5F8FF !important; }
+    .header-subtitle { color: #C6D3EC !important; }
+
+    .summary-pill { background-color: #A8C7FA !important; color: #0A305F !important; }
+
+    .company-name { color: #A8C7FA !important; }
+    .company-count { background-color: #284777 !important; color: #D9E2FF !important; }
+
+    .job-card { background-color: #1D2024 !important; border-color: #33363C !important; }
+    .job-title { color: #E2E2E9 !important; }
+    .job-location { color: #C4C6CF !important; }
+    .apply-btn { background-color: #A8C7FA !important; color: #0A305F !important; }
+
+    .footer { border-top-color: #33363C !important; color: #8E9099 !important; }
+    .footer a { color: #A8C7FA !important; }
+
+    .failure-card { background-color: #2A1A1A !important; }
+    .failure-label { color: #FFB4AB !important; }
+    .failure-title { color: #FFDAD6 !important; }
+    .failure-body { color: #E7BDB8 !important; }
+    .failure-pre { background-color: #1A0E0E !important; border-color: #5C2E2E !important; color: #FFCDD2 !important; }
+    .actions-btn { background-color: #FFB4AB !important; color: #690005 !important; }
   }
 """
 
@@ -347,7 +385,8 @@ def _html_shell(content: str) -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>Internship Tracker</title>
   <style>{_CSS}</style>
 </head>
@@ -357,7 +396,7 @@ def _html_shell(content: str) -> str:
       {content}
       <div class="footer">
         Sent by <strong>Internship Tracker</strong> &mdash; automated weekday digest<br>
-        Deduplicated via Supabase{_jina_usage_html()}{_request_company_html()}
+        Deduplicated from an in-repo ledger{_jina_usage_html()}{_request_company_html()}
       </div>
     </div>
   </div>

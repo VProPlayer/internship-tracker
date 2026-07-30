@@ -1,60 +1,68 @@
+import json
 import os
-from datetime import datetime, timezone
-from typing import Generator
+from datetime import datetime, timedelta, timezone
 
-from supabase import create_client, Client
+# The seen-jobs ledger lives in the repo itself. The GitHub Action commits the
+# updated file back after each run, so dedup state persists across runs without
+# any external database. Small by design — a few hundred rows.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+STORE_FILE = os.path.join(_HERE, "seen_jobs.json")
 
-TABLE = "seen_jobs"
-
-# Supabase/PostgREST enforces URL length limits; large `.in_()` lists and bulk
-# inserts can silently fail or be rejected beyond this size.
-BATCH_SIZE = 200
-
-_client: Client | None = None
-
-
-def _get_client() -> Client:
-    global _client
-    if _client is None:
-        _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
-    return _client
+# A row is pruned once its posting has gone unseen for this long. Open postings
+# refresh last_seen every run, so only genuinely-closed roles age out. The window
+# must exceed the longest plausible fetch gap, or a role that briefly dropped from
+# a feed could be pruned and then re-notified when it reappears.
+RETENTION_DAYS = 60
 
 
-def _chunks(lst: list, size: int) -> Generator[list, None, None]:
-    """Yield successive fixed-size chunks from lst."""
-    for i in range(0, len(lst), size):
-        yield lst[i : i + size]
+def load_ledger() -> dict[str, dict]:
+    """Read the ledger as an id-keyed dict. Missing/empty file → empty ledger."""
+    try:
+        with open(STORE_FILE) as f:
+            rows = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    return {row["id"]: row for row in rows}
 
 
-def find_new_jobs(fetched: list[dict]) -> list[dict]:
+def save_ledger(ledger: dict[str, dict]) -> None:
     """
-    Compare fetched jobs against Supabase. Insert new ones, update last_seen
-    on existing ones. Returns only the jobs that are genuinely new.
-    """
-    if not fetched:
-        return []
+    Write the ledger back as a sorted list, stable for clean git diffs.
 
-    client = _get_client()
+    Writes to a temp file and atomically renames it into place: this ledger is
+    the sole source of dedup truth post-Supabase, and a crash mid-write would
+    otherwise truncate it and re-notify everything on the next run.
+    """
+    rows = sorted(ledger.values(), key=lambda r: (r.get("first_seen") or "", r["id"]))
+    tmp = f"{STORE_FILE}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(rows, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, STORE_FILE)
+
+
+def reconcile(ledger: dict[str, dict], fetched: list[dict]) -> list[dict]:
+    """
+    Fold fetched jobs into the ledger in place: insert new ones, refresh the
+    mutable fields (last_seen, title, location, url) on ones already seen, then
+    prune anything unseen past the retention window. Returns only genuinely-new
+    jobs. Does not persist — the caller saves once via save_ledger().
+    """
     now = datetime.now(timezone.utc).isoformat()
 
-    fetched_ids = [job["id"] for job in fetched]
-
-    # SELECT in batches to stay within URL length limits
-    existing_ids: set[str] = set()
-    for batch in _chunks(fetched_ids, BATCH_SIZE):
-        response = client.table(TABLE).select("id").in_("id", batch).execute()
-        existing_ids.update(row["id"] for row in response.data)
-
     new_jobs = []
-    rows_to_insert = []
-    ids_to_update = []
-
     for job in fetched:
-        if job["id"] in existing_ids:
-            ids_to_update.append(job["id"])
+        existing = ledger.get(job["id"])
+        if existing:
+            # Keep the ledger a faithful mirror of the live posting. The dedup
+            # key is `id`; these fields don't affect it but drift otherwise.
+            existing["last_seen"] = now
+            existing["title"] = job["title"]
+            existing["url"] = job["url"]
+            existing["location"] = job.get("location", "")
         else:
             new_jobs.append(job)
-            rows_to_insert.append({
+            ledger[job["id"]] = {
                 "id": job["id"],
                 "company": job["company"],
                 "title": job["title"],
@@ -63,22 +71,26 @@ def find_new_jobs(fetched: list[dict]) -> list[dict]:
                 "first_seen": now,
                 "last_seen": now,
                 "notified": False,
-            })
+            }
 
-    # INSERT in batches
-    for batch in _chunks(rows_to_insert, BATCH_SIZE):
-        client.table(TABLE).insert(batch).execute()
-
-    # UPDATE in batches
-    for batch in _chunks(ids_to_update, BATCH_SIZE):
-        client.table(TABLE).update({"last_seen": now}).in_("id", batch).execute()
-
+    _prune(ledger, now)
     return new_jobs
 
 
-def mark_notified(job_ids: list[str]) -> None:
-    if not job_ids:
-        return
-    client = _get_client()
-    for batch in _chunks(job_ids, BATCH_SIZE):
-        client.table(TABLE).update({"notified": True}).in_("id", batch).execute()
+def _prune(ledger: dict[str, dict], now_iso: str) -> None:
+    """Drop rows whose posting hasn't been seen within RETENTION_DAYS."""
+    cutoff = datetime.fromisoformat(now_iso) - timedelta(days=RETENTION_DAYS)
+    stale = [
+        job_id
+        for job_id, row in ledger.items()
+        if row.get("last_seen") and datetime.fromisoformat(row["last_seen"]) < cutoff
+    ]
+    for job_id in stale:
+        del ledger[job_id]
+
+
+def mark_notified(ledger: dict[str, dict], job_ids: list[str]) -> None:
+    """Flag the given ids as notified in place. Caller saves via save_ledger()."""
+    for job_id in job_ids:
+        if job_id in ledger:
+            ledger[job_id]["notified"] = True

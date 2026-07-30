@@ -55,12 +55,17 @@ def main():
             print(f"[ERROR] {msg}")
             errors.append(msg)
 
-    new_jobs = diff.find_new_jobs(all_fetched)
+    ledger = diff.load_ledger()
+    new_jobs = diff.reconcile(ledger, all_fetched)
     print(f"\n{len(new_jobs)} new job(s) found.")
 
     if new_jobs:
+        # Persist only after a successful send, so a mail failure leaves the jobs
+        # unrecorded and they re-notify next run rather than being lost silently.
         notify.send_success(new_jobs)
-        diff.mark_notified([j["id"] for j in new_jobs])
+        diff.mark_notified(ledger, [j["id"] for j in new_jobs])
+
+    diff.save_ledger(ledger)
 
     if errors:
         print(f"\n{len(errors)} company/companies had errors:")

@@ -22,9 +22,11 @@ Want a company added to the list? [**Request one here.**](https://forms.gle/coZd
 ## What It Does
 
 1. Fetches job postings from companies of your choice using their native APIs (Greenhouse, Workday, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, iCIMS, Amazon) or, for companies without a structured API, scrapes the careers page via Jina Reader and extracts postings with Gemini Flash.
-2. Compares every posting against a Supabase table (`seen_jobs`) to deduplicate across runs.
+2. Compares every posting against a local JSON ledger (`seen_jobs.json`, committed in the repo) to deduplicate across runs. Postings unseen for 60 days are pruned so the ledger stays bounded.
 3. If new postings are found, sends one HTML email digest (with a plain-text fallback) to a Google Group, which fans it out to every subscriber.
 4. Runs automatically Monday–Friday at 23:00 UTC (6:00 PM EST) via GitHub Actions. If the run fails entirely, a separate failure alert is sent.
+
+> **On timing:** the cron is set for 6:00 PM EST, but GitHub Actions does not run scheduled jobs on the dot — during busy periods it queues them, so in practice the digest tends to land around **8:00 PM EST**. This is expected behaviour, not a fault. For a guaranteed time, trigger the workflow manually (see step 6 in Onboarding).
 
 ---
 
@@ -35,8 +37,8 @@ Want a company added to the list? [**Request one here.**](https://forms.gle/coZd
 | Scheduler | GitHub Actions cron (`0 23 * * 1-5`) |
 | Structured APIs | Greenhouse, Workday CXS, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, iCIMS, Amazon |
 | Unstructured sites | Jina Reader (page → plain text) + Gemini Flash (text → structured JSON) |
-| Deduplication | Supabase (Postgres) |
-| Email | Python `smtplib` (stdlib) over SMTP-SSL, Material-Expressive dark HTML template, 3x retry |
+| Deduplication | Local JSON ledger (`seen_jobs.json`), committed back by CI each run |
+| Email | Python `smtplib` (stdlib) over SMTP-SSL, Material 3 Expressive HTML template (light/dark adaptive), 3x retry |
 | Distribution | Google Group fan-out — one message per run, Google handles delivery |
 | Runtime | Python 3.12, no web framework |
 
@@ -54,24 +56,23 @@ Jina fetching climbs three auth tiers, cheapest first, escalating only when the 
 
 Fork this repo to your own GitHub account. All subsequent steps apply to your fork.
 
-### 2. Create the Supabase Table
+### 2. The Deduplication Ledger
 
-Go to your [Supabase project](https://supabase.com), open the SQL Editor, and run:
+There is no database to provision. Seen postings are tracked in `seen_jobs.json`
+at the repo root, and the GitHub Action commits the updated file back after each
+run (see `.github/workflows/run.yml`). On a fresh fork, either keep the existing
+ledger or reset it to an empty list:
 
-```sql
-create table seen_jobs (
-  id          text primary key,
-  company     text not null,
-  title       text not null,
-  url         text not null,
-  location    text,
-  first_seen  timestamptz not null,
-  last_seen   timestamptz not null,
-  notified    boolean not null default false
-);
+```json
+[]
 ```
 
-The table name must be `seen_jobs` exactly — it is hardcoded in `diff.py`.
+Each entry has the shape `{ id, company, title, url, location, first_seen,
+last_seen, notified }` — the schema is defined by `diff.py`, which reads and
+writes this file. A posting notifies only the first time its `id` is seen; every
+subsequent run refreshes its `last_seen`. Rows unseen for `RETENTION_DAYS` (60,
+in `diff.py`) are pruned, so only genuinely-closed roles age out and the ledger
+stays bounded.
 
 ### 3. Gather Your API Keys
 
@@ -79,8 +80,6 @@ You need the following before proceeding:
 
 | Key | Where to get it |
 |---|---|
-| `SUPABASE_URL` | Supabase dashboard → Project Settings → API → Project URL |
-| `SUPABASE_KEY` | Supabase dashboard → Project Settings → API → `anon` public key |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) |
 | `SMTP_USER` | The Gmail address the digest is sent from |
 | `SMTP_PASSWORD` | A Google [App Password](https://myaccount.google.com/apppasswords) for that account (requires 2-Step Verification; this is **not** your account password) |
@@ -95,8 +94,6 @@ In your forked repository, go to **Settings → Secrets and variables → Action
 
 | Secret name | Value |
 |---|---|
-| `SUPABASE_URL` | Your Supabase project URL (e.g. `https://xxxx.supabase.co`) |
-| `SUPABASE_KEY` | Your Supabase anon key (starts with `sb_publishable_` on new accounts) |
 | `GEMINI_API_KEY` | Your Google AI Studio key |
 | `SMTP_USER` | The sending Gmail address |
 | `SMTP_PASSWORD` | The Google App Password for that address |
@@ -284,8 +281,6 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_KEY=your-anon-key
 GEMINI_API_KEY=your-gemini-key
 JINA_API_KEY=your-jina-key
 SMTP_USER=your-sender@gmail.com
@@ -313,9 +308,10 @@ Errors from individual companies are logged but do not abort the run. The script
 ```
 internship-tracker/
 ├── main.py               # Entry point — orchestrates fetch, diff, notify
-├── diff.py               # Supabase deduplication logic
+├── diff.py               # File-backed deduplication logic (seen_jobs.json)
 ├── notify.py             # Email formatting and SMTP dispatch
 ├── companies.json        # List of tracked companies
+├── seen_jobs.json        # Dedup ledger — committed back by CI each run
 ├── requirements.txt
 ├── fetchers/
 │   ├── __init__.py       # Shared helpers: http_get/http_post (retry), offset_paginate,
