@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_country, is_us_location, make_id, offset_paginate
+from fetchers import http_get, is_relevant, is_us_country, is_us_location, labeled_errors, make_id, offset_paginate
 
 BASE_URL = "https://api.smartrecruiters.com/v1/companies/{company_id}/postings"
 JOB_URL = "https://jobs.smartrecruiters.com/{company_id}/{posting_id}"
@@ -13,10 +13,8 @@ def fetch(company: dict) -> list[dict]:
     jobs = []
 
     def fetch_page(offset: int) -> tuple[list, int]:
-        try:
+        with labeled_errors("SmartRecruiters", company["name"]):
             resp = http_get(url, params={"limit": LIMIT, "offset": offset})
-        except Exception as e:
-            raise RuntimeError(f"SmartRecruiters fetch failed for {company['name']}: {e}")
         data = resp.json()
         return data.get("content", []), data.get("totalFound", 0)
 

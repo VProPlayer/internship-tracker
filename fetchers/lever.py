@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_country, is_us_location, make_id
+from fetchers import http_get, is_relevant, is_us_country, is_us_location, labeled_errors, make_id
 
 BASE_URL = "https://api.lever.co/v0/postings/{handle}?mode=json"
 
@@ -6,10 +6,8 @@ BASE_URL = "https://api.lever.co/v0/postings/{handle}?mode=json"
 def fetch(company: dict) -> list[dict]:
     url = BASE_URL.format(handle=company["handle"])
 
-    try:
+    with labeled_errors("Lever", company["name"]):
         resp = http_get(url)
-    except Exception as e:
-        raise RuntimeError(f"Lever fetch failed for {company['name']}: {e}")
 
     jobs = []
 

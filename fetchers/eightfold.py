@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_location, make_id, offset_paginate
+from fetchers import http_get, is_relevant, is_us_location, labeled_errors, make_id, offset_paginate
 
 SEARCH_PATH = "/api/apply/v2/jobs"
 PAGE_SIZE = 10
@@ -17,10 +17,8 @@ def fetch(company: dict) -> list[dict]:
             "start": start,
             "num": PAGE_SIZE,
         }
-        try:
+        with labeled_errors("Eightfold", company["name"]):
             resp = http_get(url, params=params)
-        except Exception as e:
-            raise RuntimeError(f"Eightfold fetch failed for {company['name']}: {e}")
         data = resp.json()
         positions = data.get("positions", [])
         total = data.get("count", 0)

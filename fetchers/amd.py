@@ -10,7 +10,14 @@ We filter client-side for country_code == "US" since the API's own country param
 returns 0 results regardless of value.
 """
 
-from fetchers import http_get, is_relevant, make_id
+from fetchers import (
+    http_get,
+    is_relevant,
+    is_us_country,
+    labeled_errors,
+    make_id,
+    offset_paginate,
+)
 
 BASE_URL = "https://careers.amd.com/api/jobs"
 PAGE_SIZE = 100
@@ -25,31 +32,25 @@ HEADERS = {
 def fetch(company: dict) -> list[dict]:
     jobs = []
 
-    for page in range(1, MAX_PAGES + 1):
+    def fetch_page(offset: int) -> tuple[list, int]:
+        # This API paginates by 1-based page number, not offset.
+        page = offset // PAGE_SIZE + 1
         params = {
             "keywords": "intern",
             "page": page,
             "limit": PAGE_SIZE,
         }
-
-        try:
+        with labeled_errors("AMD", company["name"], f"page {page}"):
             resp = http_get(BASE_URL, params=params, headers=HEADERS)
-        except Exception as e:
-            raise RuntimeError(f"AMD fetch failed (page {page}): {e}")
-
         data = resp.json()
-        postings = data.get("jobs", [])
-        total = data.get("totalCount", 0)
+        return data.get("jobs", []), data.get("totalCount", 0)
 
-        if not postings:
-            break
-
+    for postings in offset_paginate(fetch_page, PAGE_SIZE, MAX_PAGES, company["name"]):
         for posting in postings:
             d = posting.get("data", {})
 
             # Client-side US filter — API country param is non-functional
-            country_code = (d.get("country_code") or "").upper()
-            if country_code not in ("US", "USA"):
+            if not is_us_country(d.get("country_code") or ""):
                 continue
 
             title = d.get("title", "").strip()
@@ -72,9 +73,5 @@ def fetch(company: dict) -> list[dict]:
                 "url": url,
                 "location": location,
             })
-
-        # Stop paginating if we've seen all results
-        if page * PAGE_SIZE >= total:
-            break
 
     return jobs

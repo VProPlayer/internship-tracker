@@ -53,6 +53,251 @@ REQUEST_FORM_URL = "https://forms.gle/coZd4rP7JtiTjFFW6"
 #   on-surface-var   #44474E                  #C4C6CF
 #   outline-variant  #C4C6D0                  #33363C
 
+def send_success(new_jobs: list[dict]) -> None:
+    today = date.today().strftime("%B %d, %Y")
+    company_count = len({j["company"] for j in new_jobs})
+
+    subject = f"New Internship Postings — {today}"
+    text_body = _build_success_text(new_jobs, today, company_count)
+    html_body = _build_success_html(new_jobs, today, company_count)
+
+    _send(subject, text_body, html_body, RECIPIENT)
+
+
+def send_failure(error_message: str) -> None:
+    today = date.today().strftime("%B %d, %Y")
+    subject = f"⚠️ Internship Tracker Failed — {today}"
+
+    repo = os.getenv("GITHUB_REPOSITORY", "your-repo")
+    actions_url = f"https://github.com/{repo}/actions"
+
+    text_body = (
+        f"The internship tracker run failed with the following error:\n\n"
+        f"{error_message}\n\n"
+        f"Check GitHub Actions logs for full details:\n"
+        f"{actions_url}"
+    )
+    html_body = _build_failure_html(error_message, today, actions_url)
+
+    _send(subject, text_body, html_body, OWNER_EMAIL)
+
+
+# ── Plain-text builders ───────────────────────────────────────────────────────
+
+def _build_success_text(jobs: list[dict], today: str, company_count: int) -> str:
+    grouped = defaultdict(list)
+    for job in jobs:
+        grouped[job["company"]].append(job)
+
+    lines = [
+        f"{len(jobs)} new posting(s) found across {company_count} company/companies.",
+        "",
+    ]
+
+    for company in sorted(grouped.keys()):
+        lines.append(company)
+        for job in grouped[company]:
+            location = f" | {job['location']}" if job.get("location") else ""
+            lines.append(f"  - {job['title']}{location} | Apply: {job['url']}")
+        lines.append("")
+
+    lines.append(f"Want a company added? Request one: {REQUEST_FORM_URL}")
+
+    return "\n".join(lines).strip()
+
+
+# ── HTML builders ─────────────────────────────────────────────────────────────
+
+def _jina_usage_html() -> str:
+    """Render a footer line with remaining Jina token balances, or '' if unavailable."""
+    summary = jina.usage_summary()
+    if not summary:
+        return ""
+    parts = [f"{e['label']}: {e['remaining']:,} tokens" for e in summary]
+    return "<br>Jina balance &mdash; " + " &bull; ".join(parts)
+
+
+def _request_company_html() -> str:
+    """Render the footer link to the request-a-company form."""
+    return (
+        f'<br><a href="{escape(REQUEST_FORM_URL)}" '
+        f'target="_blank" rel="noopener noreferrer">Request a company</a>'
+    )
+
+
+def _html_shell(content: str) -> str:
+    """Wrap content in the full HTML document with Material Expressive dark styles."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Internship Tracker</title>
+  <style>{_CSS}</style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      {content}
+      <div class="footer">
+        Sent by <strong>Internship Tracker</strong> &mdash; automated weekday digest<br>
+        Deduplicated from an in-repo ledger{_jina_usage_html()}{_request_company_html()}
+      </div>
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def _build_success_html(jobs: list[dict], today: str, company_count: int) -> str:
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for job in jobs:
+        grouped[job["company"]].append(job)
+
+    sections = []
+    for company in sorted(grouped.keys()):
+        company_jobs = grouped[company]
+        count_badge = f'<span class="company-count">{len(company_jobs)}</span>' if len(company_jobs) > 1 else ""
+
+        cards = []
+        for job in company_jobs:
+            title = escape(job["title"])
+            url = escape(job["url"])
+            location_html = ""
+            if job.get("location"):
+                location_html = f'<span class="job-location">{escape(job["location"])}</span>'
+
+            cards.append(f"""
+      <div class="job-card">
+        <div class="job-title">{title}</div>
+        <div class="job-meta">
+          {location_html}
+        </div>
+        <a class="apply-btn" href="{url}" target="_blank" rel="noopener noreferrer">Apply Now</a>
+      </div>""")
+
+        sections.append(f"""
+    <div class="company-section">
+      <div class="company-header">
+        <span class="company-name">{escape(company)}</span>
+        {count_badge}
+      </div>
+      {"".join(cards)}
+    </div>""")
+
+    posting_word = "posting" if len(jobs) == 1 else "postings"
+    company_word = "company" if company_count == 1 else "companies"
+
+    content = f"""
+      <div class="header">
+        <div class="header-eyebrow">Internship Digest</div>
+        <div class="header-title">New Postings Found</div>
+        <div class="header-subtitle">{today}</div>
+      </div>
+
+      <div class="summary-pill">
+        {len(jobs)} new {posting_word} across {company_count} {company_word}
+      </div>
+
+      {"".join(sections)}
+    """
+
+    return _html_shell(content)
+
+
+def _build_failure_html(error_message: str, today: str, actions_url: str) -> str:
+    escaped_error = escape(error_message)
+
+    content = f"""
+      <div class="header">
+        <div class="header-eyebrow">System Alert</div>
+        <div class="header-title">Tracker Run Failed</div>
+        <div class="header-subtitle">{today}</div>
+      </div>
+
+      <div class="failure-card">
+        <div class="failure-label">Error</div>
+        <div class="failure-title">The tracker encountered a fatal error</div>
+        <div class="failure-body">
+          The scheduled run did not complete successfully.
+          Review the GitHub Actions logs for the full stack trace.
+          <div class="failure-pre">{escaped_error}</div>
+        </div>
+        <a class="actions-btn" href="{escape(actions_url)}" target="_blank" rel="noopener noreferrer">
+          View Actions Logs
+        </a>
+      </div>
+    """
+
+    return _html_shell(content)
+
+
+# ── SMTP dispatch ─────────────────────────────────────────────────────────────
+
+def _send(subject: str, text_body: str, html_body: str, to: str) -> None:
+    if not to:
+        raise RuntimeError("No recipient configured — set RECIPIENT_EMAIL (and OWNER_EMAIL)")
+    if not (SMTP_USER and SMTP_PASSWORD):
+        raise RuntimeError("SMTP_USER and SMTP_PASSWORD must be set to send mail")
+
+    msg = EmailMessage()
+    msg["From"] = SENDER
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype="html")
+
+    last_exc: Exception | None = None
+
+    for attempt in range(SMTP_MAX_ATTEMPTS):
+        try:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ssl.create_default_context()) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(msg)
+            print(f"Email sent to {to} — {subject}")
+            return
+        except (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused):
+            # Bad credentials, or the group rejected the post. Neither self-heals,
+            # and retrying a rejected login risks tripping Google's lockout.
+            raise
+        except (smtplib.SMTPException, OSError) as e:
+            last_exc = e
+            if attempt < SMTP_MAX_ATTEMPTS - 1:
+                wait = 5 * (2 ** attempt)  # 5s, 10s
+                print(f"SMTP send failed ({e}) — retrying in {wait}s")
+                time.sleep(wait)
+
+    raise RuntimeError(f"Email to {to} failed after {SMTP_MAX_ATTEMPTS} attempts: {last_exc}")
+
+
+# ── CLI test harness ──────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--failure", metavar="ERROR", help="Send a failure alert with this message")
+    parser.add_argument("--test", action="store_true", help="Send a test success email with mock data")
+    args = parser.parse_args()
+
+    if args.failure:
+        send_failure(args.failure)
+    elif args.test:
+        mock_jobs = [
+            {"company": "ACME CORP", "title": "Software Engineering Intern", "url": "https://example.com/jobs/1", "location": "San Francisco, CA"},
+            {"company": "ACME CORP", "title": "Machine Learning Intern", "url": "https://example.com/jobs/2", "location": "Remote"},
+            {"company": "INITECH", "title": "Data Engineering Co-op", "url": "https://example.com/jobs/3", "location": "Austin, TX"},
+        ]
+        send_success(mock_jobs)
+    else:
+        parser.print_help()
+
+
+
+# ── Email stylesheet ─────────────────────────────────────────────────────────
+# Kept at the bottom: it is markup, not logic, and sat between the config and
+# the send/build functions that actually need reading.
+
 _CSS = """
   @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Display:wght@600;700&display=swap');
 
@@ -304,243 +549,3 @@ _CSS = """
     .actions-btn { background-color: #FFB4AB !important; color: #690005 !important; }
   }
 """
-
-
-def send_success(new_jobs: list[dict]) -> None:
-    today = date.today().strftime("%B %d, %Y")
-    company_count = len({j["company"] for j in new_jobs})
-
-    subject = f"New Internship Postings — {today}"
-    text_body = _build_success_text(new_jobs, today, company_count)
-    html_body = _build_success_html(new_jobs, today, company_count)
-
-    _send(subject, text_body, html_body, RECIPIENT)
-
-
-def send_failure(error_message: str) -> None:
-    today = date.today().strftime("%B %d, %Y")
-    subject = f"⚠️ Internship Tracker Failed — {today}"
-
-    repo = os.getenv("GITHUB_REPOSITORY", "your-repo")
-    actions_url = f"https://github.com/{repo}/actions"
-
-    text_body = (
-        f"The internship tracker run failed with the following error:\n\n"
-        f"{error_message}\n\n"
-        f"Check GitHub Actions logs for full details:\n"
-        f"{actions_url}"
-    )
-    html_body = _build_failure_html(error_message, today, actions_url)
-
-    _send(subject, text_body, html_body, OWNER_EMAIL)
-
-
-# ── Plain-text builders ───────────────────────────────────────────────────────
-
-def _build_success_text(jobs: list[dict], today: str, company_count: int) -> str:
-    grouped = defaultdict(list)
-    for job in jobs:
-        grouped[job["company"]].append(job)
-
-    lines = [
-        f"{len(jobs)} new posting(s) found across {company_count} company/companies.",
-        "",
-    ]
-
-    for company in sorted(grouped.keys()):
-        lines.append(company)
-        for job in grouped[company]:
-            location = f" | {job['location']}" if job.get("location") else ""
-            lines.append(f"  - {job['title']}{location} | Apply: {job['url']}")
-        lines.append("")
-
-    lines.append(f"Want a company added? Request one: {REQUEST_FORM_URL}")
-
-    return "\n".join(lines).strip()
-
-
-# ── HTML builders ─────────────────────────────────────────────────────────────
-
-def _jina_usage_html() -> str:
-    """Render a footer line with remaining Jina token balances, or '' if unavailable."""
-    summary = jina.usage_summary()
-    if not summary:
-        return ""
-    parts = [f"{e['label']}: {e['remaining']:,} tokens" for e in summary]
-    return "<br>Jina balance &mdash; " + " &bull; ".join(parts)
-
-
-def _request_company_html() -> str:
-    """Render the footer link to the request-a-company form."""
-    return (
-        f'<br><a href="{escape(REQUEST_FORM_URL)}" '
-        f'target="_blank" rel="noopener noreferrer">Request a company</a>'
-    )
-
-
-def _html_shell(content: str) -> str:
-    """Wrap content in the full HTML document with Material Expressive dark styles."""
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light dark">
-  <meta name="supported-color-schemes" content="light dark">
-  <title>Internship Tracker</title>
-  <style>{_CSS}</style>
-</head>
-<body>
-  <div class="wrapper">
-    <div class="container">
-      {content}
-      <div class="footer">
-        Sent by <strong>Internship Tracker</strong> &mdash; automated weekday digest<br>
-        Deduplicated from an in-repo ledger{_jina_usage_html()}{_request_company_html()}
-      </div>
-    </div>
-  </div>
-</body>
-</html>"""
-
-
-def _build_success_html(jobs: list[dict], today: str, company_count: int) -> str:
-    grouped: dict[str, list[dict]] = defaultdict(list)
-    for job in jobs:
-        grouped[job["company"]].append(job)
-
-    sections = []
-    for company in sorted(grouped.keys()):
-        company_jobs = grouped[company]
-        count_badge = f'<span class="company-count">{len(company_jobs)}</span>' if len(company_jobs) > 1 else ""
-
-        cards = []
-        for job in company_jobs:
-            title = escape(job["title"])
-            url = escape(job["url"])
-            location_html = ""
-            if job.get("location"):
-                location_html = f'<span class="job-location">{escape(job["location"])}</span>'
-
-            cards.append(f"""
-      <div class="job-card">
-        <div class="job-title">{title}</div>
-        <div class="job-meta">
-          {location_html}
-        </div>
-        <a class="apply-btn" href="{url}" target="_blank" rel="noopener noreferrer">Apply Now</a>
-      </div>""")
-
-        sections.append(f"""
-    <div class="company-section">
-      <div class="company-header">
-        <span class="company-name">{escape(company)}</span>
-        {count_badge}
-      </div>
-      {"".join(cards)}
-    </div>""")
-
-    posting_word = "posting" if len(jobs) == 1 else "postings"
-    company_word = "company" if company_count == 1 else "companies"
-
-    content = f"""
-      <div class="header">
-        <div class="header-eyebrow">Internship Digest</div>
-        <div class="header-title">New Postings Found</div>
-        <div class="header-subtitle">{today}</div>
-      </div>
-
-      <div class="summary-pill">
-        {len(jobs)} new {posting_word} across {company_count} {company_word}
-      </div>
-
-      {"".join(sections)}
-    """
-
-    return _html_shell(content)
-
-
-def _build_failure_html(error_message: str, today: str, actions_url: str) -> str:
-    escaped_error = escape(error_message)
-
-    content = f"""
-      <div class="header">
-        <div class="header-eyebrow">System Alert</div>
-        <div class="header-title">Tracker Run Failed</div>
-        <div class="header-subtitle">{today}</div>
-      </div>
-
-      <div class="failure-card">
-        <div class="failure-label">Error</div>
-        <div class="failure-title">The tracker encountered a fatal error</div>
-        <div class="failure-body">
-          The scheduled run did not complete successfully.
-          Review the GitHub Actions logs for the full stack trace.
-          <div class="failure-pre">{escaped_error}</div>
-        </div>
-        <a class="actions-btn" href="{escape(actions_url)}" target="_blank" rel="noopener noreferrer">
-          View Actions Logs
-        </a>
-      </div>
-    """
-
-    return _html_shell(content)
-
-
-# ── SMTP dispatch ─────────────────────────────────────────────────────────────
-
-def _send(subject: str, text_body: str, html_body: str, to: str) -> None:
-    if not to:
-        raise RuntimeError("No recipient configured — set RECIPIENT_EMAIL (and OWNER_EMAIL)")
-    if not (SMTP_USER and SMTP_PASSWORD):
-        raise RuntimeError("SMTP_USER and SMTP_PASSWORD must be set to send mail")
-
-    msg = EmailMessage()
-    msg["From"] = SENDER
-    msg["To"] = to
-    msg["Subject"] = subject
-    msg.set_content(text_body)
-    msg.add_alternative(html_body, subtype="html")
-
-    last_exc: Exception | None = None
-
-    for attempt in range(SMTP_MAX_ATTEMPTS):
-        try:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ssl.create_default_context()) as server:
-                server.login(SMTP_USER, SMTP_PASSWORD)
-                server.send_message(msg)
-            print(f"Email sent to {to} — {subject}")
-            return
-        except (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused):
-            # Bad credentials, or the group rejected the post. Neither self-heals,
-            # and retrying a rejected login risks tripping Google's lockout.
-            raise
-        except (smtplib.SMTPException, OSError) as e:
-            last_exc = e
-            if attempt < SMTP_MAX_ATTEMPTS - 1:
-                wait = 5 * (2 ** attempt)  # 5s, 10s
-                print(f"SMTP send failed ({e}) — retrying in {wait}s")
-                time.sleep(wait)
-
-    raise RuntimeError(f"Email to {to} failed after {SMTP_MAX_ATTEMPTS} attempts: {last_exc}")
-
-
-# ── CLI test harness ──────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--failure", metavar="ERROR", help="Send a failure alert with this message")
-    parser.add_argument("--test", action="store_true", help="Send a test success email with mock data")
-    args = parser.parse_args()
-
-    if args.failure:
-        send_failure(args.failure)
-    elif args.test:
-        mock_jobs = [
-            {"company": "ACME CORP", "title": "Software Engineering Intern", "url": "https://example.com/jobs/1", "location": "San Francisco, CA"},
-            {"company": "ACME CORP", "title": "Machine Learning Intern", "url": "https://example.com/jobs/2", "location": "Remote"},
-            {"company": "INITECH", "title": "Data Engineering Co-op", "url": "https://example.com/jobs/3", "location": "Austin, TX"},
-        ]
-        send_success(mock_jobs)
-    else:
-        parser.print_help()

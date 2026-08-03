@@ -5,7 +5,8 @@ import traceback
 
 from dotenv import load_dotenv
 
-from fetchers import greenhouse, workday, icims, jina, ashby, amazon, phenom, amd, eightfold, lever, smartrecruiters
+import fetchers
+from fetchers import greenhouse, workday, icims, jina, ashby, amazon, phenom, amd, eightfold, lever, orc, smartrecruiters
 import diff
 import notify
 
@@ -22,6 +23,7 @@ FETCHERS = {
     "eightfold": eightfold.fetch,
     "lever": lever.fetch,
     "smartrecruiters": smartrecruiters.fetch,
+    "orc": orc.fetch,
     "custom": jina.fetch,
 }
 
@@ -54,6 +56,10 @@ def main():
             msg = f"{company['name']}: {e}"
             print(f"[ERROR] {msg}")
             errors.append(msg)
+
+        # Truncation is not an exception — the fetcher still returned real jobs —
+        # but it means postings were missed, so it has to reach the failure email.
+        errors.extend(fetchers.drain_truncations())
 
     ledger = diff.load_ledger()
     new_jobs = diff.reconcile(ledger, all_fetched)

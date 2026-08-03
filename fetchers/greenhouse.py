@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_location
+from fetchers import http_get, is_relevant, is_us_location, labeled_errors
 
 BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 
@@ -6,10 +6,8 @@ BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 def fetch(company: dict) -> list[dict]:
     url = BASE_URL.format(slug=company["slug"])
 
-    try:
+    with labeled_errors("Greenhouse", company["name"]):
         resp = http_get(url)
-    except Exception as e:
-        raise RuntimeError(f"Greenhouse fetch failed for {company['name']}: {e}")
 
     data = resp.json()
     jobs = []

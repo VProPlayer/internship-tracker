@@ -98,7 +98,9 @@
     "type": "phenom",
     "api_base": "https://apply.careers.microsoft.com",
     "domain": "microsoft.com",
-    "title_exclude": ["Research Intern"]
+    "title_exclude": [
+      "Research Intern"
+    ]
   },
   {
     "name": "AMAZON",
@@ -237,5 +239,82 @@
     "tenant": "sierraspace",
     "host": "wd1",
     "site": "Sierra_Space_External_Career_Site"
+  },
+  {
+    "name": "EPIC GAMES",
+    "type": "greenhouse",
+    "slug": "epicgames"
+  },
+  {
+    "name": "BANDWIDTH",
+    "type": "greenhouse",
+    "slug": "bandwidth"
+  },
+  {
+    "name": "DEUTSCHE BANK",
+    "type": "workday",
+    "tenant": "db",
+    "host": "wd3",
+    "site": "DBWebsite"
+  },
+  {
+    "name": "ORACLE",
+    "type": "orc",
+    "host": "eeho.fa.us2.oraclecloud.com",
+    "site_number": "CX_1",
+    "site_slug": "jobsearch"
+  },
+  {
+    "name": "HONEYWELL",
+    "type": "orc",
+    "host": "ibqbjb.fa.ocs.oraclecloud.com",
+    "site_number": "CX_1001",
+    "site_slug": "Honeywell"
+  },
+  {
+    "name": "PENDO",
+    "type": "greenhouse",
+    "slug": "pendo"
+  },
+  {
+    "name": "RITHUM",
+    "type": "greenhouse",
+    "slug": "rithum"
+  },
+  {
+    "name": "WOLFSPEED",
+    "type": "workday",
+    "tenant": "cree",
+    "host": "wd108",
+    "site": "EXT"
+  },
+  {
+    "name": "MARVELL",
+    "type": "workday",
+    "tenant": "marvell",
+    "host": "wd1",
+    "site": "MarvellCareers"
+  },
+  {
+    "name": "S&P GLOBAL",
+    "type": "workday",
+    "tenant": "spgi",
+    "host": "wd5",
+    "site": "SPGI_Careers"
+  },
+  {
+    "name": "FIRST CITIZENS BANK",
+    "type": "custom",
+    "url": "https://external-firstcitizens.icims.com/jobs/search?ql=jobtitle%3D%22intern%22"
+  },
+  {
+    "name": "METLIFE",
+    "type": "custom",
+    "url": "https://www.metlifecareers.com/en_US/ml/SearchJobs/intern/"
+  },
+  {
+    "name": "NUTANIX",
+    "type": "custom",
+    "url": "https://careers.nutanix.com/en/jobs/?search=intern"
   }
 ]

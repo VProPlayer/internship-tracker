@@ -1,4 +1,10 @@
-from fetchers import http_get, is_relevant, offset_paginate
+from fetchers import (
+    http_get,
+    is_relevant,
+    is_us_country,
+    labeled_errors,
+    offset_paginate,
+)
 
 SEARCH_PATH = "/api/pcsx/search"
 PAGE_SIZE = 100
@@ -20,10 +26,8 @@ def fetch(company: dict) -> list[dict]:
             "start": start,
             "num": PAGE_SIZE,
         }
-        try:
+        with labeled_errors("Phenom", company["name"]):
             resp = http_get(url, params=params)
-        except Exception as e:
-            raise RuntimeError(f"Phenom fetch failed for {company['name']}: {e}")
         data = resp.json()
         positions = data.get("data", {}).get("positions", [])
         total = data.get("data", {}).get("count", 0)
@@ -38,10 +42,13 @@ def fetch(company: dict) -> list[dict]:
             if title_exclude and any(excl in title.lower() for excl in title_exclude):
                 continue
 
+            # Phenom location strings carry the country as the last comma segment
+            # ("Raleigh, NC, US"), so match that against the shared country helper.
+            # Deliberately NOT falling back to is_us_location here: it reads a
+            # trailing "CA" as California, so "Toronto, CA" would pass as US.
             locations = pos.get("standardizedLocations") or pos.get("locations") or []
             is_us = any(
-                loc.endswith(", US") or "united states" in loc.lower()
-                for loc in locations
+                is_us_country(loc.rsplit(",", 1)[-1]) for loc in locations
             )
             if not is_us:
                 continue

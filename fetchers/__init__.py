@@ -1,6 +1,7 @@
 import hashlib
 import re
 from collections.abc import Callable, Generator
+from contextlib import contextmanager
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -124,6 +125,43 @@ def http_post(url: str, **kwargs) -> requests.Response:
     return resp
 
 
+@contextmanager
+def labeled_errors(what: str, company_name: str, detail: str = ""):
+    """Re-raise any exception from the block as a RuntimeError naming the company.
+
+    Every fetcher wrapped its first HTTP call in an identical try/except purely to
+    attach this label; `http_get`/`http_post` already handle retries and status.
+    """
+    try:
+        yield
+    except RuntimeError:
+        raise
+    except Exception as e:
+        suffix = f" ({detail})" if detail else ""
+        raise RuntimeError(f"{what} fetch failed for {company_name}{suffix}: {e}") from e
+
+
+# ── Truncation reporting ──────────────────────────────────────────────────────
+
+# Fetchers cannot raise on truncation without discarding the postings they already
+# collected, so they record it here instead and `main.py` drains this after each
+# company. Previously this was a bare `print`, which never reached the failure email.
+_truncations: list[str] = []
+
+
+def record_truncation(company_name: str, detail: str) -> None:
+    msg = f"{company_name}: {detail}"
+    print(f"[WARN] {msg}")
+    _truncations.append(msg)
+
+
+def drain_truncations() -> list[str]:
+    """Return truncations recorded since the last drain, and clear them."""
+    drained = list(_truncations)
+    _truncations.clear()
+    return drained
+
+
 # ── Offset pagination helper ──────────────────────────────────────────────────
 
 def offset_paginate(
@@ -142,4 +180,7 @@ def offset_paginate(
         offset += page_size
         if offset >= total:
             return
-    print(f"[WARN] {company_name}: hit max_pages ({max_pages}) — some postings may be missed")
+    record_truncation(
+        company_name,
+        f"hit max_pages ({max_pages}) — postings beyond {max_pages * page_size} were not fetched",
+    )

@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_country, make_id, offset_paginate
+from fetchers import http_get, is_relevant, is_us_country, labeled_errors, make_id, offset_paginate
 
 BASE_URL = "https://www.amazon.jobs/en/search.json"
 LIMIT = 100
@@ -16,10 +16,8 @@ def fetch(company: dict) -> list[dict]:
             "result_limit": LIMIT,
             "offset": offset,
         }
-        try:
+        with labeled_errors("Amazon", company["name"]):
             resp = http_get(BASE_URL, params=params)
-        except Exception as e:
-            raise RuntimeError(f"Amazon fetch failed: {e}")
         data = resp.json()
         return data.get("jobs", []), data.get("hits", 0)
 

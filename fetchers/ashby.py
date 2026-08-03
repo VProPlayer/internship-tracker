@@ -1,4 +1,4 @@
-from fetchers import http_get, is_relevant, is_us_country, is_us_location
+from fetchers import http_get, is_relevant, is_us_country, is_us_location, labeled_errors
 
 BASE_URL = "https://api.ashbyhq.com/posting-api/job-board/{board_handle}"
 
@@ -6,10 +6,8 @@ BASE_URL = "https://api.ashbyhq.com/posting-api/job-board/{board_handle}"
 def fetch(company: dict) -> list[dict]:
     url = BASE_URL.format(board_handle=company["board_handle"])
 
-    try:
+    with labeled_errors("Ashby", company["name"]):
         resp = http_get(url)
-    except Exception as e:
-        raise RuntimeError(f"Ashby fetch failed for {company['name']}: {e}")
 
     data = resp.json()
     jobs = []

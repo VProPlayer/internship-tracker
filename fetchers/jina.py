@@ -6,7 +6,7 @@ import time
 import requests
 from google import genai
 
-from fetchers import http_get, make_id
+from fetchers import KEYWORD_RE, http_get, make_id, record_truncation
 
 # Gemini 3.5 Flash-Lite (GA) — low-latency, low-cost, built for high-volume
 # extraction work like this. Bump this constant to change models.
@@ -14,7 +14,9 @@ GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 JINA_BASE = "https://r.jina.ai/"
 JINA_BALANCE_URL = "https://embeddings-dashboard-api.jina.ai/api/v1/api_key/user"
-CONTENT_LIMIT = 40000  # raised from 12k; Gemini flash handles ~1M tokens so 40k chars (~10k tokens) is well within range
+CONTENT_LIMIT = 40000  # per-chunk size; ~10k tokens, well inside Flash-Lite's 1M window
+MAX_CHUNKS = 4         # caps cost at 4 Gemini calls (~160k chars) for one company
+OVERLAP = 2000         # chunk overlap so a posting on a boundary survives in one slice
 
 EXTRACTION_PROMPT = """
 You are extracting internship job postings from the text of a company careers page.
@@ -67,25 +69,43 @@ def _get_gemini_client() -> genai.Client:
 
 
 def fetch(company: dict) -> list[dict]:
+    # Note: _fetch_via_jina escalates auth tiers process-wide (see _TIERS below),
+    # so a rate limit hit here changes which key every *subsequent* company uses.
     page_content = _fetch_via_jina(company["url"])
-    raw_jobs = _extract_via_gemini(page_content, company["name"])
+    raw_jobs = _extract_all_chunks(page_content, company["url"], company["name"])
+    return _normalize(raw_jobs, company["name"])
 
+
+def _normalize(raw_jobs: list[dict], company_name: str) -> list[dict]:
+    """Coerce Gemini's extracted objects into the shared job shape.
+
+    Split out from `fetch` so the drop conditions below are testable without
+    making a Jina request and a Gemini call.
+    """
     jobs = []
+    dropped = 0
     for job in raw_jobs:
         title = job.get("title", "").strip()
         url = job.get("url", "").strip()
         location = job.get("location", "").strip()
 
         if not title or not url:
+            dropped += 1
             continue
 
         jobs.append({
-            "id": make_id(company["name"], title, url),
-            "company": company["name"],
+            "id": make_id(company_name, title, url),
+            "company": company_name,
             "title": title,
             "url": url,
             "location": location,
         })
+
+    if dropped:
+        record_truncation(
+            company_name,
+            f"{dropped} extracted posting(s) discarded for missing title or url",
+        )
 
     return jobs
 
@@ -220,20 +240,47 @@ def _get_with_failover(url: str) -> requests.Response:
 
 
 def _fetch_via_jina(url: str) -> str:
-    resp = _get_with_failover(url)
+    return _get_with_failover(url).text
 
-    content = resp.text
-    if len(content) > CONTENT_LIMIT:
-        # Truncate at the last newline before the limit so we never cut mid-line
-        cutoff = content.rfind("\n", 0, CONTENT_LIMIT)
-        cutoff = cutoff if cutoff > 0 else CONTENT_LIMIT
-        print(
-            f"[WARN] {url}: content truncated from {len(content)} to {cutoff} chars "
-            f"— postings beyond that point will be missed"
+
+def _chunk(content: str, url: str) -> list[str]:
+    """Split page content into overlapping slices, one per Gemini call.
+
+    Previously the content past CONTENT_LIMIT was simply discarded, which silently
+    lost postings on any long careers page. Splitting instead costs one extra
+    Gemini call per slice, which is far cheaper than missing listings.
+
+    Slices overlap by OVERLAP chars so a posting straddling a boundary is intact in
+    at least one of them; the duplicates that creates are removed by id afterwards.
+    """
+    if len(content) <= CONTENT_LIMIT:
+        return [content]
+
+    chunks = []
+    start = 0
+    covered = 0
+    while start < len(content) and len(chunks) < MAX_CHUNKS:
+        end = start + CONTENT_LIMIT
+        if end < len(content):
+            # Prefer a newline boundary, but only if it is not so far back that it
+            # wastes the slice — some pages embed huge single-line blobs.
+            nl = content.rfind("\n", start + int(CONTENT_LIMIT * 0.9), end)
+            if nl > start:
+                end = nl
+        chunks.append(content[start:end])
+        covered = end
+        if end >= len(content):
+            break
+        start = end - OVERLAP
+
+    if covered < len(content):
+        record_truncation(
+            url,
+            f"content is {len(content)} chars; only the first {covered} were scanned "
+            f"across {MAX_CHUNKS} chunks — postings beyond that point will be missed",
         )
-        content = content[:cutoff]
 
-    return content
+    return chunks
 
 
 def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
@@ -270,6 +317,41 @@ def _parse_gemini_response(text: str, company_name: str) -> list[dict]:
     except json.JSONDecodeError:
         print(f"[{company_name}] Gemini returned non-JSON: {text[:200]}")
         return []
+
+
+def _extract_all_chunks(content: str, url: str, company_name: str) -> list[dict]:
+    """Run extraction over every chunk of the page and merge the results.
+
+    One Gemini call per chunk. Duplicates from the chunk overlap are dropped on
+    (title, url), keeping the first occurrence.
+    """
+    chunks = _chunk(content, url)
+
+    # Skip chunks that cannot possibly contain a match before paying for a Gemini
+    # call. The extraction prompt requires the job *title* to contain Intern /
+    # Internship / Co-op, so a slice without any of those words anywhere in it —
+    # nav, cookie banners, footers, embedded theme JSON — has nothing to find.
+    # This is a keyword presence test, not a relevance judgement: anything that
+    # merely mentions the words is still sent on for Gemini to decide.
+    keepers = [c for c in chunks if KEYWORD_RE.search(c)]
+    skipped = len(chunks) - len(keepers)
+    if len(chunks) > 1 or skipped:
+        print(
+            f"[{company_name}] {len(chunks)} chunk(s), "
+            f"{len(keepers)} sent to Gemini, {skipped} skipped as keyword-free"
+        )
+
+    merged: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for chunk in keepers:
+        for job in _extract_via_gemini(chunk, company_name):
+            key = (job.get("title", "").strip(), job.get("url", "").strip())
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(job)
+
+    return merged
 
 
 def _extract_via_gemini(content: str, company_name: str) -> list[dict]:

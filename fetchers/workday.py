@@ -1,4 +1,4 @@
-from fetchers import http_post, is_relevant, is_us_location, make_id, offset_paginate
+from fetchers import http_post, is_relevant, is_us_location, labeled_errors, make_id, offset_paginate
 
 BASE_URL = "https://{tenant}.{host}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
 
@@ -25,10 +25,8 @@ def fetch(company: dict) -> list[dict]:
             "offset": offset,
             "searchText": "intern",
         }
-        try:
+        with labeled_errors("Workday", company["name"]):
             resp = http_post(url, json=payload, headers=HEADERS)
-        except Exception as e:
-            raise RuntimeError(f"Workday fetch failed for {company['name']}: {e}")
         data = resp.json()
         return data.get("jobPostings", []), data.get("total", 0)
 
