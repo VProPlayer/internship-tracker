@@ -1,6 +1,6 @@
 # Internship Tracker
 
-Monitors 45 company careers pages every weekday evening and emails you a digest of new internship postings. No web server, no dashboard — just a Python script and a GitHub Actions cron job.
+Monitors 58 company careers pages every weekday evening and emails you a digest of new internship postings. No web server, no dashboard — just a Python script and a GitHub Actions cron job.
 
 ---
 
@@ -21,10 +21,12 @@ Want a company added to the list? [**Request one here.**](https://forms.gle/coZd
 
 ## What It Does
 
-1. Fetches job postings from companies of your choice using their native APIs (Greenhouse, Workday, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, iCIMS, Amazon) or, for companies without a structured API, scrapes the careers page via Jina Reader and extracts postings with Gemini Flash.
+1. Fetches job postings from companies of your choice using their native APIs (Greenhouse, Workday, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, Oracle Recruiting Cloud, Amazon) or, for companies without a structured API, scrapes the careers page via Jina Reader and extracts postings with Gemini Flash.
 2. Compares every posting against a local JSON ledger (`seen_jobs.json`, committed in the repo) to deduplicate across runs. Postings unseen for 60 days are pruned so the ledger stays bounded.
 3. If new postings are found, sends one HTML email digest (with a plain-text fallback) to a Google Group, which fans it out to every subscriber.
 4. Runs automatically Monday–Friday at 23:00 UTC (6:00 PM EST) via GitHub Actions. If the run fails entirely, a separate failure alert is sent.
+
+The failure alert also carries **partial-loss warnings**, not just hard errors. A fetcher that hits its page cap, a careers page longer than the scan budget, or a posting discarded for a missing title or URL are all recorded and surfaced by email — these were previously only visible as `[WARN]` lines buried in the Actions log.
 
 > **On timing:** the cron is set for 6:00 PM EST, but GitHub Actions does not run scheduled jobs on the dot — during busy periods it queues them, so in practice the digest tends to land around **8:00 PM EST**. This is expected behaviour, not a fault. For a guaranteed time, trigger the workflow manually (see step 6 in Onboarding).
 
@@ -35,16 +37,22 @@ Want a company added to the list? [**Request one here.**](https://forms.gle/coZd
 | Layer | Tool |
 |---|---|
 | Scheduler | GitHub Actions cron (`0 23 * * 1-5`) |
-| Structured APIs | Greenhouse, Workday CXS, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, iCIMS, Amazon |
+| Structured APIs | Greenhouse, Workday CXS, Ashby, Lever, SmartRecruiters, Eightfold, Phenom, Oracle Recruiting Cloud, Amazon |
 | Unstructured sites | Jina Reader (page → plain text) + Gemini Flash (text → structured JSON) |
 | Deduplication | Local JSON ledger (`seen_jobs.json`), committed back by CI each run |
 | Email | Python `smtplib` (stdlib) over SMTP-SSL, Material 3 Expressive HTML template (light/dark adaptive), 3x retry |
 | Distribution | Google Group fan-out — one message per run, Google handles delivery |
 | Runtime | Python 3.12, no web framework |
 
-The Gemini model in use is `gemini-3.5-flash-lite`, set by the `GEMINI_MODEL` constant in `fetchers/jina.py`. All fetchers share HTTP helpers in `fetchers/__init__.py` with automatic retry/backoff and offset pagination, plus the `is_relevant` / `is_us_country` / `is_us_location` filters.
+The Gemini model in use is `gemini-3.5-flash-lite`, set by the `GEMINI_MODEL` constant in `fetchers/jina.py`. All fetchers share HTTP helpers in `fetchers/__init__.py` with automatic retry/backoff and offset pagination, plus the `is_relevant` / `is_us_country` / `is_us_location` filters and the `labeled_errors` context manager that tags a failure with the company that caused it.
+
+Country matching goes through `is_us_country` rather than per-fetcher string comparisons. Fetchers used to carry their own spelling lists, which drifted — a platform returning `United States` instead of `US` had every posting silently dropped.
 
 Email dispatch retries 3 times with 5s/10s backoff on transient SMTP failures. Authentication errors and recipient rejections are raised immediately rather than retried — neither self-heals, and repeating a failed login risks a Google account lockout.
+
+Long careers pages are **chunked rather than truncated**. A page over `CONTENT_LIMIT` (40,000 chars) is split into up to `MAX_CHUNKS` (4) overlapping slices, each sent to Gemini separately and the results merged and de-duplicated; the `OVERLAP` (2,000 chars) keeps a posting that straddles a boundary intact in at least one slice. Previously everything past the limit was discarded — Apple was losing roughly 20% of its page.
+
+To keep that from multiplying cost, a chunk is **skipped before any Gemini call** if it contains no `intern` / `co-op` / `student` keyword anywhere. The extraction prompt requires the keyword in the job title, so a slice of nav, cookie banner, footer, or embedded theme JSON provably has nothing to find. This is a local regex (`KEYWORD_RE`), not a Jina or Gemini feature, so it costs nothing — it reduces Gemini calls but not Jina reads, since a page must be fetched before it can be inspected.
 
 Jina fetching climbs three auth tiers, cheapest first, escalating only when the current one stops working: the keyless **free tier** is used until it rate-limits or repeatedly fails, then **key 1** (`JINA_API_KEY`) until its token balance is exhausted (HTTP 402), then **key 2** (`JINA_API_KEY_FALLBACK`) until it too is exhausted, after which the run hard-fails. A tier whose key is unset is skipped, so with no `JINA_API_KEY` the free tier falls straight through to `JINA_API_KEY_FALLBACK`. Escalation is one-way and lasts the rest of the run. The email footer reports remaining balances only for the keys that run actually used — a free-tier-only run shows no balance line.
 
@@ -226,17 +234,35 @@ For Phenom People–powered boards. `api_base` is the careers host, `domain` the
 }
 ```
 
-### iCIMS
+### Oracle Recruiting Cloud
 
-Use the base URL of the company's iCIMS-powered careers page.
+For Oracle Fusion–backed careers sites. Each tenant sits on its own Fusion pod host. Two
+different site identifiers are needed and they are **not** interchangeable: `site_number` is
+the API's `siteNumber` argument, while `site_slug` is the segment used in public job URLs
+(using `site_number` in a URL redirects). Find the host and slug by opening a job posting
+from the company's careers page and reading the address bar.
 
 ```json
 {
-  "name": "LOCKHEED MARTIN",
-  "type": "icims",
-  "url": "https://www.lockheedmartinjobs.com/search-jobs"
+  "name": "HONEYWELL",
+  "type": "orc",
+  "host": "ibqbjb.fa.ocs.oraclecloud.com",
+  "site_number": "CX_1001",
+  "site_slug": "Honeywell"
 }
 ```
+
+Some tenants ignore `site_number` entirely and return the full requisition set regardless
+of the value passed. Their keyword search is also fuzzy — a search for `intern` matches
+"Internal Auditor" — so the shared title filters do the real work.
+
+### iCIMS — non-functional
+
+> **`type: "icims"` does not work and should not be used.** iCIMS serves HTML rather than
+> JSON and exposes no unauthenticated search API, so `fetchers/icims.py` fails on every
+> board tested. It remains in the dispatch table only so existing configs error loudly
+> rather than silently. **Use `type: "custom"` for iCIMS companies** — that is how Rivian,
+> SAS, and Joby Aviation are configured.
 
 ### Custom (Jina + Gemini)
 
@@ -250,7 +276,18 @@ For any company that does not use one of the above platforms, use `"type": "cust
 }
 ```
 
-Custom type results depend on how well the careers page renders through Jina. Pages that load entirely via JavaScript client-side rendering may return sparse results.
+Custom type results depend on how well the careers page renders through Jina. Pages that load their job rows entirely via client-side JavaScript return **nothing** — Jina delivers the page chrome, and the run spends a Jina read plus at least one Gemini call to extract zero postings. Ericsson, Toshiba Global Commerce, and Extreme Networks were all rejected on exactly this basis.
+
+Before adding a `custom` entry, confirm the page is worth fetching:
+
+```bash
+curl -s "https://r.jina.ai/<CAREERS_URL>" | grep -ci "intern"
+```
+
+A handful of hits usually means nav links and cookie text only. Real listings show up as
+repeated job titles with distinct URLs — inspect the output rather than trusting the count.
+If there are none, find the XHR endpoint the page calls in your browser's network tab and
+write a small fetcher against it instead; `fetchers/orc.py` was built that way.
 
 ---
 
@@ -324,9 +361,10 @@ internship-tracker/
 │   ├── eightfold.py      # Eightfold JSON API (NetApp)
 │   ├── phenom.py         # Phenom People search API
 │   ├── amazon.py         # Amazon jobs search API
+│   ├── orc.py            # Oracle Recruiting Cloud (Oracle, Honeywell)
 │   ├── amd.py            # AMD Jibe search API (registered, currently unused)
-│   ├── icims.py          # iCIMS REST API
-│   └── jina.py           # Jina Reader + Gemini Flash extraction (free → key 1 → key 2 tiers)
+│   ├── icims.py          # iCIMS REST API — NON-FUNCTIONAL, use type "custom" instead
+│   └── jina.py           # Jina Reader + Gemini Flash extraction (chunked; free → key 1 → key 2 tiers)
 └── .github/
     └── workflows/
         └── run.yml       # GitHub Actions cron definition
