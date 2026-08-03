@@ -2,6 +2,36 @@
 
 Monitors 58 company careers pages every weekday evening and emails you a digest of new internship postings. No web server, no dashboard — just a Python script and a GitHub Actions cron job.
 
+📋 **[See all 58 tracked companies →](#tracked-companies)** (at the bottom of this page)
+
+---
+
+## How This Is Different
+
+Most internship trackers are either a job board you have to remember to visit, or a
+scraped aggregator that indexes postings after some third party has already picked them up.
+This one is built the other way around:
+
+- **It comes to you.** One email digest per run, straight to your inbox. Nothing to check,
+  no site to open, no feed to scroll.
+- **It runs every weekday, automatically.** A GitHub Actions cron fires Monday–Friday
+  evening. New postings reach you within one business day of appearing — not in real time,
+  but without you doing anything.
+- **It reads the companies' own job APIs.** Postings come from each employer's actual ATS
+  (Greenhouse, Workday, Ashby, Oracle, and so on), so a listing shows up as soon as the
+  company publishes it, rather than waiting for an aggregator to crawl and re-index it.
+- **The company list is yours.** 58 hand-picked employers, not an algorithm's idea of what
+  you want. Adding one is a few lines of JSON — see [Adding a New Company](#adding-a-new-company).
+- **It filters for undergrads specifically.** PhD, MS, MBA, and graduate-only internships
+  are excluded, along with senior/staff/manager titles and non-technical roles. A search
+  for "intern" on most boards buries you in postings you cannot apply to.
+- **You are told once.** A local ledger tracks every posting it has seen, so a role that
+  stays open for two months is emailed to you exactly once, never re-sent.
+- **It tells you when it might have missed something.** Page caps, oversized careers pages,
+  and malformed postings all raise a warning by email instead of vanishing into a log.
+- **No account, no tracking, no middleman.** Fork it and it is entirely yours — your own
+  API keys, your own list, your own inbox. Nothing about you is collected or sold.
+
 ---
 
 ## Subscribe
@@ -369,3 +399,26 @@ internship-tracker/
     └── workflows/
         └── run.yml       # GitHub Actions cron definition
 ```
+
+---
+
+## Tracked Companies
+
+**58 companies**, grouped by the platform each is fetched from. The authoritative
+list is [`companies.json`](companies.json) — this table is a snapshot of it.
+
+| Source | Count | Companies |
+|---|---:|---|
+| **Greenhouse** | 18 | Agility Robotics, Anduril, Anthropic, Apptronik, Aurora Innovation, Bandwidth, Databricks, Epic Games, Figure AI, Katalyst Space, Nuro, Pendo, Relativity Space, Rithum, Rocket Lab, SpaceX, Waymo, Zipline |
+| **Custom (Jina + Gemini)** | 16 | Apple, Astrobotic, Cisco, Fidelity Investments, Firefly Aerospace, First Citizens Bank, Google, IBM, Intuitive Machines, Joby Aviation, Lenovo, MetLife, Nutanix, Rivian, SAS, Tesla |
+| **Workday** | 11 | Blue Origin, Boston Dynamics, Deutsche Bank, Marvell, Maxar, NVIDIA, Red Hat, Rockwell Automation, S&P Global, Sierra Space, Wolfspeed |
+| **Ashby** | 5 | 1X Technologies, OpenAI, Rivian VW Tech, Skydio, Wayve |
+| **Oracle Recruiting Cloud** | 2 | Honeywell, Oracle |
+| **Phenom** | 2 | Microsoft, Qualcomm |
+| **Amazon** | 1 | Amazon |
+| **Eightfold** | 1 | NetApp |
+| **Lever** | 1 | Zoox |
+| **SmartRecruiters** | 1 | Astroscale |
+
+Want one added? [**Request a company here.**](https://forms.gle/coZd4rP7JtiTjFFW6)
+Or add it yourself — see [Adding a New Company](#adding-a-new-company).
