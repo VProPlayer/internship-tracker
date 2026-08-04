@@ -74,16 +74,32 @@ _EXCLUDE_RE = re.compile(
     r'ph\.?d|doctoral|doctorate|postdoc|post-doc|'
     r'graduate\s+research|ms\s+intern|masters\s+intern|mba\s+intern|'
     r'graduate\s+intern|grad\s+intern|m\.?eng|'
-    r'senior|sr\.|staff|director|manager|principal|head\s+of|'
+    r'senior|sr\.|staff|director|principal|head\s+of|'
     r'vice\s+president|account\s+executive|accountant|'
-    r'project\s+planner|program\s+manager|operations\s+specialist|lead'
+    r'project\s+planner|operations\s+specialist|lead'
     r')\b',
+    re.IGNORECASE,
+)
+
+# A bare "manager" used to live in _EXCLUDE_RE as a seniority signal, but it also
+# dropped legitimate PM-track internships ("Product Manager: Internship
+# Opportunities"). Only the staff roles that *run* an intern program are excluded
+# now — those read "Internship Program Manager", with intern as the modifier
+# rather than the role.
+_INTERN_PROGRAM_STAFF_RE = re.compile(
+    r'\b(?:intern(?:ship)?s?|students?|co-?op)\s+'
+    r'(?:(?:program|programs|recruiting|recruitment|talent|university|campus)\s+)?'
+    r'manager\b',
     re.IGNORECASE,
 )
 
 
 def is_relevant(title: str) -> bool:
-    return bool(KEYWORD_RE.search(title)) and not bool(_EXCLUDE_RE.search(title))
+    return (
+        bool(KEYWORD_RE.search(title))
+        and not bool(_EXCLUDE_RE.search(title))
+        and not bool(_INTERN_PROGRAM_STAFF_RE.search(title))
+    )
 
 
 # ── Stable ID generation ──────────────────────────────────────────────────────

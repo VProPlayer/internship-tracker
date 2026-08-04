@@ -1,8 +1,8 @@
 # Internship Tracker
 
-Monitors 58 company careers pages every weekday evening and emails you a digest of new internship postings. No web server, no dashboard — just a Python script and a GitHub Actions cron job.
+Monitors 57 company careers pages every weekday evening and emails you a digest of new internship postings. No web server, no dashboard — just a Python script and a GitHub Actions cron job.
 
-📋 **[See all 58 tracked companies →](#tracked-companies)** (at the bottom of this page)
+📋 **[See all 57 tracked companies →](#tracked-companies)** (at the bottom of this page)
 
 ---
 
@@ -20,11 +20,13 @@ This one is built the other way around:
 - **It reads the companies' own job APIs.** Postings come from each employer's actual ATS
   (Greenhouse, Workday, Ashby, Oracle, and so on), so a listing shows up as soon as the
   company publishes it, rather than waiting for an aggregator to crawl and re-index it.
-- **The company list is yours.** 58 hand-picked employers, not an algorithm's idea of what
+- **The company list is yours.** 57 hand-picked employers, not an algorithm's idea of what
   you want. Adding one is a few lines of JSON — see [Adding a New Company](#adding-a-new-company).
 - **It filters for undergrads specifically.** PhD, MS, MBA, and graduate-only internships
-  are excluded, along with senior/staff/manager titles and non-technical roles. A search
-  for "intern" on most boards buries you in postings you cannot apply to.
+  are excluded, along with senior/staff/director titles and non-technical roles. PM-track
+  internships ("Product Manager: Internship Opportunities") are kept — only the staff roles
+  that *run* an intern program ("Internship Program Manager") are dropped. A search for
+  "intern" on most boards buries you in postings you cannot apply to.
 - **You are told once.** A local ledger tracks every posting it has seen, so a role that
   stays open for two months is emailed to you exactly once, never re-sent.
 - **It tells you when it might have missed something.** Page caps, oversized careers pages,
@@ -366,7 +368,7 @@ python main.py
 
 Output is printed per company as each fetcher completes. A summary line at the end shows how many new jobs were found. If any new jobs exist, an email is sent immediately.
 
-Errors from individual companies are logged but do not abort the run. The script only exits with a non-zero code if every single company fails.
+Errors from individual companies do not abort the run — every remaining company is still fetched and the digest is still emailed. They are collected and printed at the end, and the script then exits with a non-zero code if *any* company failed, so a broken board shows up as a red run rather than passing silently.
 
 ---
 
@@ -404,12 +406,12 @@ internship-tracker/
 
 ## Tracked Companies
 
-**58 companies**, grouped by the platform each is fetched from. The authoritative
+**57 companies**, grouped by the platform each is fetched from. The authoritative
 list is [`companies.json`](companies.json) — this table is a snapshot of it.
 
 | Source | Count | Companies |
 |---|---:|---|
-| **Greenhouse** | 18 | Agility Robotics, Anduril, Anthropic, Apptronik, Aurora Innovation, Bandwidth, Databricks, Epic Games, Figure AI, Katalyst Space, Nuro, Pendo, Relativity Space, Rithum, Rocket Lab, SpaceX, Waymo, Zipline |
+| **Greenhouse** | 17 | Agility Robotics, Anduril, Anthropic, Apptronik, Bandwidth, Databricks, Epic Games, Figure AI, Katalyst Space, Nuro, Pendo, Relativity Space, Rithum, Rocket Lab, SpaceX, Waymo, Zipline |
 | **Custom (Jina + Gemini)** | 16 | Apple, Astrobotic, Cisco, Fidelity Investments, Firefly Aerospace, First Citizens Bank, Google, IBM, Intuitive Machines, Joby Aviation, Lenovo, MetLife, Nutanix, Rivian, SAS, Tesla |
 | **Workday** | 11 | Blue Origin, Boston Dynamics, Deutsche Bank, Marvell, Maxar, NVIDIA, Red Hat, Rockwell Automation, S&P Global, Sierra Space, Wolfspeed |
 | **Ashby** | 5 | 1X Technologies, OpenAI, Rivian VW Tech, Skydio, Wayve |

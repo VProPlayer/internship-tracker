@@ -68,10 +68,7 @@ Deliberately excluded: **nCino** (Wilmington), **Duke Energy** / **Truist** (Cha
 2. **`fetchers/amd.py` has no entry in `companies.json`.** Registered in the dispatch table
    but never invoked — a second orphaned fetcher. It works (tested directly, 0 current
    postings); it just has no company pointing at it. Add an AMD entry or drop the module.
-3. **AURORA INNOVATION is broken.** Greenhouse board `aurorainnovation` returns 404 — the
-   board was renamed or removed. Pre-existing, unrelated to recent changes. Needs a new
-   slug or removal.
-4. **Puerto Rico is treated as non-US.** `is_us_country("PR")` returns False, so Honeywell's
+3. **Puerto Rico is treated as non-US.** `is_us_country("PR")` returns False, so Honeywell's
    San Juan internship is filtered out. Arguably wrong — PR is US soil and open to US
    students. Changing `_US_COUNTRY_VALUES` would affect every fetcher, so it is left as a
    deliberate decision for you rather than a silent behavior change.
