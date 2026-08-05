@@ -284,11 +284,12 @@ def _chunk(content: str, url: str) -> list[str]:
 
 
 def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
-    """Send `prompt` to Gemini; retry up to 3 times with backoff on rate-limit errors."""
+    """Send `prompt` to Gemini; retry with backoff on rate-limit and transient errors."""
     client = _get_gemini_client()
     last_exc: Exception | None = None
+    attempts = 4
 
-    for attempt in range(3):
+    for attempt in range(attempts):
         try:
             response = client.models.generate_content(
                 model=GEMINI_MODEL,
@@ -297,9 +298,10 @@ def _call_gemini_with_retry(prompt: str, company_name: str) -> str:
             return response.text.strip()
         except Exception as e:
             last_exc = e
-            if attempt < 2 and _is_rate_limit(e):
-                wait = 5 * (2 ** attempt)  # 5s, 10s
-                print(f"[{company_name}] Rate limited — retrying in {wait}s")
+            if attempt < attempts - 1 and _is_transient(e):
+                wait = 5 * (2 ** attempt)  # 5s, 10s, 20s
+                reason = "Rate limited" if _is_rate_limit(e) else f"Transient error ({e})"
+                print(f"[{company_name}] {reason} — retrying in {wait}s")
                 time.sleep(wait)
             else:
                 break
@@ -364,3 +366,32 @@ def _extract_via_gemini(content: str, company_name: str) -> list[dict]:
 def _is_rate_limit(e: Exception) -> bool:
     msg = str(e).lower()
     return "429" in msg or "quota" in msg or "rate" in msg
+
+
+# Transient transport/server failures worth another attempt. Large prompts (the
+# multi-chunk companies) are the ones that get their connection dropped mid-flight.
+_TRANSIENT_MARKERS = (
+    "server disconnected",
+    "connection reset",
+    "connection aborted",
+    "connection error",
+    "remote protocol error",
+    "read timeout",
+    "timed out",
+    "timeout",
+    "temporarily unavailable",
+    "internal error",
+    "deadline exceeded",
+    "500",
+    "502",
+    "503",
+    "504",
+)
+
+
+def _is_transient(e: Exception) -> bool:
+    """True when the failure looks like a network/server blip rather than a bad request."""
+    if _is_rate_limit(e):
+        return True
+    msg = str(e).lower()
+    return any(marker in msg for marker in _TRANSIENT_MARKERS)
